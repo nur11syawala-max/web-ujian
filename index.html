@@ -6,6 +6,14 @@
   <title>Aplikasi Web Ujian</title>
   <!-- Framework CSS Tailwind via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    /* Mencegah efek pull-to-refresh / swipe down di HP */
+    html, body {
+      overscroll-behavior-y: none;
+      touch-action: pan-x pan-y;
+    }
+  </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
@@ -63,9 +71,15 @@
           Pelanggaran: <span id="violation-count">0</span>
         </span>
       </div>
-      <button onclick="konfirmasiSelesai()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
-        Selesai Ujian
-      </button>
+      <div class="flex items-center gap-2">
+        <!-- Tombol Refresh Manual -->
+        <button onclick="refreshForm()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1">
+          🔄 Refresh Form
+        </button>
+        <button onclick="konfirmasiSelesai()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
+          Selesai Ujian
+        </button>
+      </div>
     </div>
 
     <!-- Iframe Tempat Google Form -->
@@ -76,7 +90,6 @@
 
   <!-- ==================== JAVASCRIPT SYSTEM ==================== -->
   <script>
-    // ⚠️ GANTI URL DI BAWAH DENGAN WEB APP URL HASIL DEPLOY APPS SCRIPT KAMU ⚠️
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpxz4rgc9CLO_rGEZf5EwtlZaiFSz9EdQv_uMHfTDSP_myc_RYuN4cZyJe0I_XJA/exec";
 
     let currentUser = null;
@@ -195,7 +208,15 @@
       }
     }
 
-    // --- 5. SELESAI / KELUAR UJIAN ---
+    // --- 5. REFRESH FORM MANUAL ---
+    function refreshForm() {
+      if (confirm("Apakah kamu yakin ingin memuat ulang Google Form? Isian yang belum dikirim mungkin akan terhapus.")) {
+        const iframe = document.getElementById("iframe-form");
+        iframe.src = iframe.src;
+      }
+    }
+
+    // --- 6. SELESAI / KELUAR UJIAN ---
     function konfirmasiSelesai() {
       if (confirm("Apakah kamu yakin sudah mengirim (submit) Google Form dan ingin menyelesaikan ujian?")) {
         isExamActive = false;
@@ -214,21 +235,20 @@
       location.reload();
     }
 
-// --- BLOKIR KLIK KANAN, COPY, PASTE, & SELECT TEXT ---
-document.addEventListener('contextmenu', e => e.preventDefault());
+    // --- BLOKIR KLIK KANAN, COPY, PASTE, & SELECT TEXT ---
+    document.addEventListener('contextmenu', e => e.preventDefault());
 
-document.addEventListener('keydown', e => {
-  // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (Inspect Element)
-  if (
-    e.keyCode === 123 || 
-    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
-    (e.ctrlKey && e.keyCode === 85) ||
-    (e.ctrlKey && e.keyCode === 67) // Blokir Ctrl+C
-  ) {
-    e.preventDefault();
-  }
-});
-
+    document.addEventListener('keydown', e => {
+      // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+C
+      if (
+        e.keyCode === 123 || 
+        (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
+        (e.ctrlKey && e.keyCode === 85) ||
+        (e.ctrlKey && e.keyCode === 67)
+      ) {
+        e.preventDefault();
+      }
+    });
   </script>
 </body>
 </html>
