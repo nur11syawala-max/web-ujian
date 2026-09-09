@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi Web Ujian</title>
+  <!-- Framework CSS Tailwind via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+
+  <!-- ==================== 1. HALAMAN LOGIN ==================== -->
+  <div id="page-login" class="flex min-h-screen items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-slate-800">Ujian Online</h1>
+        <p class="text-sm text-slate-500">Silakan login menggunakan akun siswa</p>
+      </div>
+
+      <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Username / NISN</label>
+          <input type="text" id="input-username" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Masukkan username">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Password</label>
+          <input type="password" id="input-password" required class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Masukkan password">
+        </div>
+        <button type="submit" id="btn-login" class="w-full bg-indigo-600 text-white font-semibold py-2.5 rounded-lg hover:bg-indigo-700 transition">
+          Masuk
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 2. HALAMAN DASHBOARD ==================== -->
+  <div id="page-dashboard" class="hidden min-h-screen p-4 max-w-3xl mx-auto">
+    <!-- Header Profil -->
+    <div class="bg-indigo-600 text-white p-5 rounded-2xl shadow-md mb-6 flex justify-between items-center">
+      <div>
+        <p class="text-xs text-indigo-200 uppercase tracking-wider">Selamat Datang</p>
+        <h2 id="user-nama" class="text-xl font-bold">Nama Siswa</h2>
+        <p id="user-kelas" class="text-sm text-indigo-100">Kelas</p>
+      </div>
+      <button onclick="logout()" class="bg-indigo-700 hover:bg-indigo-800 text-xs text-white px-3 py-2 rounded-lg">
+        Keluar
+      </button>
+    </div>
+
+    <h3 class="text-lg font-bold text-slate-800 mb-4">Daftar Ujian Hari Ini</h3>
+    <div id="list-jadwal" class="space-y-4">
+      <!-- Card Ujian akan di-generate otomatis oleh JS -->
+    </div>
+  </div>
+
+  <!-- ==================== 3. HALAMAN RUANG UJIAN (FULLSCREEN) ==================== -->
+  <div id="page-exam" class="hidden fixed inset-0 bg-white z-50 flex flex-col">
+    <!-- Bar Atas Ujian -->
+    <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center text-sm shadow">
+      <div>
+        <span class="font-semibold" id="exam-title">Nama Mata Pelajaran</span>
+        <span id="violation-badge" class="ml-3 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full hidden">
+          Pelanggaran: <span id="violation-count">0</span>
+        </span>
+      </div>
+      <button onclick="konfirmasiSelesai()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 rounded">
+        Selesai Ujian
+      </button>
+    </div>
+
+    <!-- Iframe Tempat Google Form -->
+    <div class="flex-1 w-full bg-slate-200">
+      <iframe id="iframe-form" class="w-full h-full border-none" src="about:blank"></iframe>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT SYSTEM ==================== -->
+  <script>
+    // ⚠️ GANTI URL DI BAWAH DENGAN WEB APP URL HASIL DEPLOY APPS SCRIPT KAMU ⚠️
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpxz4rgc9CLO_rGEZf5EwtlZaiFSz9EdQv_uMHfTDSP_myc_RYuN4cZyJe0I_XJA/exec";
+
+    let currentUser = null;
+    let isExamActive = false;
+    let violationCount = 0;
+
+    // --- 1. PROSES LOGIN ---
+    async function handleLogin(e) {
+      e.preventDefault();
+      const btn = document.getElementById("btn-login");
+      btn.innerText = "Memproses...";
+      btn.disabled = true;
+
+      const username = document.getElementById("input-username").value;
+      const password = document.getElementById("input-password").value;
+
+      try {
+        const response = await fetch(SCRIPT_URL, {
+          method: "POST",
+          body: JSON.stringify({ action: "login", username, password })
+        });
+        const result = await response.json();
+
+        if (result.status === "success") {
+          currentUser = result.user;
+          document.getElementById("user-nama").innerText = currentUser.nama;
+          document.getElementById("user-kelas").innerText = currentUser.kelas;
+          
+          document.getElementById("page-login").classList.add("hidden");
+          document.getElementById("page-dashboard").classList.remove("hidden");
+          
+          loadJadwal();
+        } else {
+          alert(result.message);
+        }
+      } catch (err) {
+        alert("Gagal terhubung ke server. Periksa jaringan internet kamu.");
+      } finally {
+        btn.innerText = "Masuk";
+        btn.disabled = false;
+      }
+    }
+
+    // --- 2. AMBIL JADWAL UJIAN ---
+    async function loadJadwal() {
+      const container = document.getElementById("list-jadwal");
+      container.innerHTML = "<p class='text-slate-500 text-center py-4'>Mengecek jadwal ujian...</p>";
+
+      try {
+        const response = await fetch(`${SCRIPT_URL}?action=getJadwal`);
+        const result = await response.json();
+
+        if (result.status === "success" && result.data.length > 0) {
+          container.innerHTML = "";
+          result.data.forEach(item => {
+            const card = document.createElement("div");
+            card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3";
+            card.innerHTML = `
+              <div>
+                <h4 class="font-bold text-slate-800">${item.mapel}</h4>
+                <p class="text-xs text-slate-500">Tanggal: ${item.tanggal} | Jam: ${item.jam_mulai} - ${item.jam_selesai}</p>
+              </div>
+              <button onclick="mulaiUjian('${item.mapel}', '${item.link_form}')" 
+                      class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-lg transition">
+                Mulai Ujian
+              </button>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          container.innerHTML = "<p class='text-slate-500 text-center py-4'>Tidak ada jadwal ujian aktif saat ini.</p>";
+        }
+      } catch (err) {
+        container.innerHTML = "<p class='text-red-500 text-center py-4'>Gagal mengambil jadwal.</p>";
+      }
+    }
+
+    // --- 3. MASUK MODE UJIAN & FULLSCREEN ---
+    function mulaiUjian(mapel, linkForm) {
+      if (!confirm(`Kamu akan memulai ujian ${mapel}. Layar akan otomatis masuk ke mode Fullscreen.`)) return;
+
+      document.getElementById("exam-title").innerText = mapel;
+      document.getElementById("iframe-form").src = linkForm;
+      document.getElementById("page-exam").classList.remove("hidden");
+      
+      isExamActive = true;
+      violationCount = 0;
+      updateViolationBadge();
+
+      // Minta layar Fullscreen
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      }
+    }
+
+    // --- 4. SISTEM DETEKSI KECURANGAN (PINDAH TAB / MINIMIZE HP) ---
+    document.addEventListener("visibilitychange", function() {
+      if (document.hidden && isExamActive) {
+        violationCount++;
+        updateViolationBadge();
+        alert(`PERINGATAN DETEKSI KECURANGAN!\nKamu terdeteksi meninggalkan layar ujian (${violationCount}x).\nPelanggaran ini dicatat oleh sistem.`);
+      }
+    });
+
+    function updateViolationBadge() {
+      const badge = document.getElementById("violation-badge");
+      const countSpan = document.getElementById("violation-count");
+      if (violationCount > 0) {
+        badge.classList.remove("hidden");
+        countSpan.innerText = violationCount;
+      } else {
+        badge.classList.add("hidden");
+      }
+    }
+
+    // --- 5. SELESAI / KELUAR UJIAN ---
+    function konfirmasiSelesai() {
+      if (confirm("Apakah kamu yakin sudah mengirim (submit) Google Form dan ingin menyelesaikan ujian?")) {
+        isExamActive = false;
+        document.getElementById("iframe-form").src = "about:blank";
+        document.getElementById("page-exam").classList.add("hidden");
+
+        if (document.exitFullscreen) {
+          document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+          document.webkitExitFullscreen();
+        }
+      }
+    }
+
+    function logout() {
+      location.reload();
+    }
+
+// --- BLOKIR KLIK KANAN, COPY, PASTE, & SELECT TEXT ---
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+document.addEventListener('keydown', e => {
+  // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U (Inspect Element)
+  if (
+    e.keyCode === 123 || 
+    (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
+    (e.ctrlKey && e.keyCode === 85) ||
+    (e.ctrlKey && e.keyCode === 67) // Blokir Ctrl+C
+  ) {
+    e.preventDefault();
+  }
+});
+
+  </script>
+</body>
+</html>
