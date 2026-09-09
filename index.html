@@ -249,6 +249,33 @@
         e.preventDefault();
       }
     });
+    // --- 1. DETEKSI KELUAR DARI MODE FULLSCREEN (EFALUASI SPLIT SCREEN) ---
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+function handleFullscreenChange() {
+  // Jika sedang ujian dan browser keluar dari Fullscreen
+  if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive) {
+    violationCount++;
+    updateViolationBadge();
+    alert(`PERINGATAN!\nKamu keluar dari mode Fullscreen atau mencoba membagi layar (Split Screen).\nPelanggaran dicatat (${violationCount}x).`);
+  }
+}
+
+// --- 2. DETEKSI UKURAN VIEWPORT (JIKA SISWA PAKAI FLOATING WINDOW / SPLIT) ---
+window.addEventListener('resize', function() {
+  if (!isExamActive) return;
+
+  // Hitung persentase tinggi browser dibanding layar HP
+  const heightRatio = window.innerHeight / screen.height;
+
+  // Jika tinggi browser kurang dari 75% tinggi fisik HP, terdeteksi split screen
+  if (heightRatio < 0.75) {
+    violationCount++;
+    updateViolationBadge();
+    alert(`PERINGATAN SPLIT SCREEN!\nUkuran layar kamu terlalu kecil. Harap matikan Mode Layar Belah / Floating Window.`);
+  }
+});
   </script>
 </body>
 </html>
