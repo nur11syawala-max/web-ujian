@@ -15,13 +15,13 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
+<body class="bg-slate-100 min-h-screen text-slate-800 font-sans select-none">
 
   <!-- ==================== 1. HALAMAN LOGIN ==================== -->
   <div id="page-login" class="flex min-h-screen items-center justify-center p-4">
     <div class="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg border border-slate-200">
       <div class="text-center mb-6">
-        <h1 class="text-2xl font-bold text-slate-800">Ujian Onlne</h1>
+        <h1 class="text-2xl font-bold text-slate-800">Ujian Online</h1>
         <p class="text-sm text-slate-500">Silakan login menggunakan akun siswa</p>
       </div>
 
@@ -55,7 +55,13 @@
       </button>
     </div>
 
-    <h3 class="text-lg font-bold text-slate-800 mb-4">Daftar Ujian Hari Ini</h3>
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-lg font-bold text-slate-800">Daftar Ujian Hari Ini</h3>
+      <button onclick="loadJadwal()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1">
+        🔄 Muat Ulang Jadwal
+      </button>
+    </div>
+
     <div id="list-jadwal" class="space-y-4">
       <!-- Card Ujian akan di-generate otomatis oleh JS -->
     </div>
@@ -82,9 +88,28 @@
       </div>
     </div>
 
-    <!-- Iframe Tempat Google Form -->
-    <div class="flex-1 w-full bg-slate-200">
+    <!-- Wadah Iframe & Overlay Penalti -->
+    <div class="flex-1 w-full bg-slate-200 relative">
       <iframe id="iframe-form" class="w-full h-full border-none" src="about:blank"></iframe>
+
+      <!-- OVERLAY PENALTY / BEKUKAN PELANGGARAN -->
+      <div id="penalty-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white text-center p-6 hidden">
+        <div class="max-w-md w-full bg-slate-900 p-6 rounded-2xl border border-red-500/40 shadow-2xl">
+          <div class="text-4xl mb-2">⚠️</div>
+          <h3 class="text-xl font-bold text-red-500 mb-1">AKSES UJIAN DIBEKUKAN</h3>
+          <p class="text-xs text-slate-300 mb-4" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
+          
+          <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
+            <p class="text-xs text-slate-400">Sisa Waktu Hukuman (Pelanggaran ke-<span id="penalty-count-text">1</span>)</p>
+            <div class="text-5xl font-black text-red-500 my-2" id="penalty-timer">10</div>
+            <p class="text-xs text-slate-400">detik</p>
+          </div>
+
+          <p class="text-xs text-slate-400 leading-relaxed">
+            Layar dikunci sementara. Penalti bertambah <strong>+10 detik</strong> untuk setiap pelanggaran berikutnya.
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -95,6 +120,8 @@
     let currentUser = null;
     let isExamActive = false;
     let violationCount = 0;
+    let penaltyTimer = null;
+    let penaltySecondsLeft = 0;
 
     // --- 1. PROSES LOGIN ---
     async function handleLogin(e) {
@@ -133,7 +160,32 @@
       }
     }
 
-    // --- 2. AMBIL JADWAL UJIAN ---
+    // --- HELPER UNTUK PARSING WAKTU DARI SHEETS ---
+    function parseDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return new Date();
+      let y, m, d;
+      if (dateStr.includes('-')) {
+        const parts = dateStr.split('-');
+        if (parts[0].length === 4) [y, m, d] = parts.map(Number);
+        else [d, m, y] = parts.map(Number);
+      } else if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts[2] && parts[2].length === 4) [d, m, y] = parts.map(Number);
+        else [y, m, d] = parts.map(Number);
+      } else {
+        const dt = new Date(dateStr);
+        y = dt.getFullYear();
+        m = dt.getMonth() + 1;
+        d = dt.getDate();
+      }
+
+      const timeParts = timeStr.split(':').map(Number);
+      const hh = timeParts[0] || 0;
+      const mm = timeParts[1] || 0;
+      return new Date(y, m - 1, d, hh, mm, 0);
+    }
+
+    // --- 2. AMBIL JADWAL UJIAN & KUNCIAN WAKTU REAL-TIME ---
     async function loadJadwal() {
       const container = document.getElementById("list-jadwal");
       container.innerHTML = "<p class='text-slate-500 text-center py-4'>Mengecek jadwal ujian...</p>";
@@ -144,18 +196,37 @@
 
         if (result.status === "success" && result.data.length > 0) {
           container.innerHTML = "";
+          const now = new Date();
+
           result.data.forEach(item => {
+            const startTime = parseDateTime(item.tanggal, item.jam_mulai);
+            const endTime = parseDateTime(item.tanggal, item.jam_selesai);
+
+            let buttonHtml = '';
+            let statusBadge = '';
+
+            if (now < startTime) {
+              buttonHtml = `<button disabled class="bg-amber-500 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90 shadow-sm">⏳ Belum Dimulai</button>`;
+              statusBadge = `<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-medium ml-2">Belum Buka</span>`;
+            } else if (now > endTime) {
+              buttonHtml = `<button disabled class="bg-slate-400 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90 shadow-sm">🔒 Sudah Selesai</button>`;
+              statusBadge = `<span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-medium ml-2">Selesai</span>`;
+            } else {
+              buttonHtml = `<button onclick="mulaiUjian('${item.mapel}', '${item.link_form}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-md hover:shadow-lg">🚀 Mulai Ujian</button>`;
+              statusBadge = `<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-medium ml-2 animate-pulse">Sedang Berlangsung</span>`;
+            }
+
             const card = document.createElement("div");
             card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3";
             card.innerHTML = `
               <div>
-                <h4 class="font-bold text-slate-800">${item.mapel}</h4>
-                <p class="text-xs text-slate-500">Tanggal: ${item.tanggal} | Jam: ${item.jam_mulai} - ${item.jam_selesai}</p>
+                <div class="flex items-center">
+                  <h4 class="font-bold text-slate-800">${item.mapel}</h4>
+                  ${statusBadge}
+                </div>
+                <p class="text-xs text-slate-500 mt-1">📅 ${item.tanggal} &nbsp;|&nbsp; ⏰ ${item.jam_mulai} - ${item.jam_selesai} WIB</p>
               </div>
-              <button onclick="mulaiUjian('${item.mapel}', '${item.link_form}')" 
-                      class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2 rounded-lg transition">
-                Mulai Ujian
-              </button>
+              <div>${buttonHtml}</div>
             `;
             container.appendChild(card);
           });
@@ -177,6 +248,7 @@
       
       isExamActive = true;
       violationCount = 0;
+      penaltySecondsLeft = 0;
       updateViolationBadge();
 
       // Minta layar Fullscreen
@@ -188,12 +260,78 @@
       }
     }
 
-    // --- 4. SISTEM DETEKSI KECURANGAN (PINDAH TAB / MINIMIZE HP) ---
+    // --- 4. SISTEM KECURANGAN & PENALTI BERTINGKAT ---
+    function triggerViolation(reason) {
+      if (!isExamActive) return;
+
+      violationCount++;
+      updateViolationBadge();
+
+      // Hitung durasi hukuman: Pelanggaran * 10 detik
+      const addedPenalty = violationCount * 10;
+      showPenaltyOverlay(reason, addedPenalty);
+    }
+
+    function showPenaltyOverlay(reason, duration) {
+      const overlay = document.getElementById("penalty-overlay");
+      const countText = document.getElementById("penalty-count-text");
+      const timerText = document.getElementById("penalty-timer");
+      const reasonText = document.getElementById("penalty-reason");
+
+      penaltySecondsLeft = duration;
+      countText.innerText = violationCount;
+      reasonText.innerText = reason;
+      timerText.innerText = penaltySecondsLeft;
+
+      overlay.classList.remove("hidden");
+
+      if (penaltyTimer) clearInterval(penaltyTimer);
+
+      penaltyTimer = setInterval(() => {
+        penaltySecondsLeft--;
+        timerText.innerText = penaltySecondsLeft;
+
+        if (penaltySecondsLeft <= 0) {
+          clearInterval(penaltyTimer);
+          penaltyTimer = null;
+          overlay.classList.add("hidden");
+
+          // Kembalikan ke fullscreen jika terlepas
+          const docEl = document.documentElement;
+          if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+            if (docEl.requestFullscreen) {
+              docEl.requestFullscreen().catch(() => {});
+            } else if (docEl.webkitRequestFullscreen) {
+              docEl.webkitRequestFullscreen();
+            }
+          }
+        }
+      }, 1000);
+    }
+
+    // --- DETEKSI PINDAH TAB / MINIMIZE ---
     document.addEventListener("visibilitychange", function() {
-      if (document.hidden && isExamActive) {
-        violationCount++;
-        updateViolationBadge();
-        alert(`PERINGATAN DETEKSI KECURANGAN!\nKamu terdeteksi meninggalkan layar ujian (${violationCount}x).\nPelanggaran ini dicatat oleh sistem.`);
+      if (document.hidden && isExamActive && penaltySecondsLeft <= 0) {
+        triggerViolation("Terdeteksi meninggalkan layar ujian / berpindah aplikasi.");
+      }
+    });
+
+    // --- DETEKSI KELUAR FULLSCREEN / SPLIT SCREEN ---
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
+    function handleFullscreenChange() {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive && penaltySecondsLeft <= 0) {
+        triggerViolation("Terdeteksi keluar dari mode Fullscreen / mencoba Split Screen.");
+      }
+    }
+
+    // --- DETEKSI FLOATING WINDOW / UKURAN VIEWPORT KECIL ---
+    window.addEventListener('resize', function() {
+      if (!isExamActive) return;
+      const heightRatio = window.innerHeight / screen.height;
+      if (heightRatio < 0.75 && penaltySecondsLeft <= 0) {
+        triggerViolation("Terdeteksi menggunakan Mode Layar Belah (Split Screen) atau Floating Window.");
       }
     });
 
@@ -220,6 +358,7 @@
     function konfirmasiSelesai() {
       if (confirm("Apakah kamu yakin sudah mengirim (submit) Google Form dan ingin menyelesaikan ujian?")) {
         isExamActive = false;
+        if (penaltyTimer) clearInterval(penaltyTimer);
         document.getElementById("iframe-form").src = "about:blank";
         document.getElementById("page-exam").classList.add("hidden");
 
@@ -235,11 +374,9 @@
       location.reload();
     }
 
-    // --- BLOKIR KLIK KANAN, COPY, PASTE, & SELECT TEXT ---
+    // --- BLOKIR KLIK KANAN, COPY, PASTE, & INSPECT ---
     document.addEventListener('contextmenu', e => e.preventDefault());
-
     document.addEventListener('keydown', e => {
-      // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+C
       if (
         e.keyCode === 123 || 
         (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
@@ -249,33 +386,6 @@
         e.preventDefault();
       }
     });
-    // --- 1. DETEKSI KELUAR DARI MODE FULLSCREEN (EFALUASI SPLIT SCREEN) ---
-document.addEventListener('fullscreenchange', handleFullscreenChange);
-document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-
-function handleFullscreenChange() {
-  // Jika sedang ujian dan browser keluar dari Fullscreen
-  if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive) {
-    violationCount++;
-    updateViolationBadge();
-    alert(`PERINGATAN!\nKamu keluar dari mode Fullscreen atau mencoba membagi layar (Split Screen).\nPelanggaran dicatat (${violationCount}x).`);
-  }
-}
-
-// --- 2. DETEKSI UKURAN VIEWPORT (JIKA SISWA PAKAI FLOATING WINDOW / SPLIT) ---
-window.addEventListener('resize', function() {
-  if (!isExamActive) return;
-
-  // Hitung persentase tinggi browser dibanding layar HP
-  const heightRatio = window.innerHeight / screen.height;
-
-  // Jika tinggi browser kurang dari 75% tinggi fisik HP, terdeteksi split screen
-  if (heightRatio < 0.75) {
-    violationCount++;
-    updateViolationBadge();
-    alert(`PERINGATAN SPLIT SCREEN!\nUkuran layar kamu terlalu kecil. Harap matikan Mode Layar Belah / Floating Window.`);
-  }
-});
   </script>
 </body>
 </html>
