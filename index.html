@@ -430,6 +430,20 @@ setInterval(() => {
     hancurkanClipboard();
   }
 }, 2000);
+
+// Buat layar buram saat browser kehilangan fokus (termasuk saat memicu SS)
+window.addEventListener('blur', function() {
+  if (isExamActive) {
+    document.body.style.filter = 'blur(20px)';
+  }
+});
+
+// Kembalikan layar normal saat kembali ke web
+window.addEventListener('focus', function() {
+  if (isExamActive) {
+    document.body.style.filter = 'none';
+  }
+});
     
   </script>
 </body>
