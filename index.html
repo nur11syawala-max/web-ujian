@@ -401,6 +401,36 @@
         }
       }
     });
+
+// --- TRIK PENGHANCUR CLIPBOARD (ANTI-PASTE DARI LUAR) ---
+function hancurkanClipboard() {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    // Timpa isi clipboard dengan teks peringatan
+    navigator.clipboard.writeText("⚠️ DILARANG COPAS SAAT UJIAN! ⚠️").catch(() => {});
+  }
+}
+
+// 1. Kosongkan clipboard begitu siswa kembali ke layar ujian
+window.addEventListener('focus', function() {
+  if (isExamActive) {
+    hancurkanClipboard();
+  }
+});
+
+// 2. Kosongkan clipboard saat status tab berubah menjadi aktif kembali
+document.addEventListener("visibilitychange", function() {
+  if (!document.hidden && isExamActive) {
+    hancurkanClipboard();
+  }
+});
+
+// 3. Kosongkan clipboard secara berkala setiap 2 detik saat ujian berjalan
+setInterval(() => {
+  if (isExamActive) {
+    hancurkanClipboard();
+  }
+}, 2000);
+    
   </script>
 </body>
 </html>
