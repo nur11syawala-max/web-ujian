@@ -8,6 +8,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   
   <style>
+    html, body {
+  -webkit-touch-callout: none; /* Mencegah pop-up menu bawaan iOS / Safari saat di-hold */
+}
     /* Mencegah efek pull-to-refresh / swipe down di HP & seleksi teks */
     html, body {
       overscroll-behavior-y: none;
@@ -424,6 +427,25 @@
         hancurkanClipboard();
       }
     }, 2000);
+
+// --- DETEKSI SENTUHAN LAMA (LONG PRESS) ---
+let touchTimer = null;
+const LONG_PRESS_DURATION = 500; // Waktu tahanan dalam milidetik (0.5 detik)
+
+document.addEventListener('touchstart', function(e) {
+  if (!isExamActive || isLocked) return;
+
+  // Jalankan timer begitu jari menyentuh layar
+  touchTimer = setTimeout(() => {
+    triggerViolation("Terdeteksi menahan sentuhan layar (Long Press) / mencoba memicu menu HP!");
+  }, LONG_PRESS_DURATION);
+}, { passive: true });
+
+// Batalkan timer jika jari diangkat, digeser (scroll), atau batal menyentuh
+document.addEventListener('touchend', () => clearTimeout(touchTimer));
+document.addEventListener('touchmove', () => clearTimeout(touchTimer));
+document.addEventListener('touchcancel', () => clearTimeout(touchTimer));
+    
   </script>
 </body>
 </html>
