@@ -72,21 +72,29 @@
     <div class="flex-1 w-full bg-slate-200 relative">
       <iframe id="iframe-form" class="w-full h-full border-none" src="about:blank"></iframe>
 
-      <!-- OVERLAY PENALTY / BEKUKAN PELANGGARAN -->
+      <!-- OVERLAY BEKUKAN UJIAN (BUTUH TOKEN PENGAWAS) -->
       <div id="penalty-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white text-center p-6 hidden">
-        <div class="max-w-md w-full bg-slate-900 p-6 rounded-2xl border border-red-500/40 shadow-2xl animate-pulse">
+        <div class="max-w-md w-full bg-slate-900 p-6 rounded-2xl border border-red-500/50 shadow-2xl">
           <div class="text-5xl mb-2">🚨</div>
-          <h3 class="text-2xl font-black text-red-500 mb-1">AKSES UJIAN DIBEKUKAN!</h3>
+          <h3 class="text-2xl font-black text-red-500 mb-1">AKSES UJIAN TERKUNCI!</h3>
           <p class="text-xs text-slate-300 mb-4" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
           
           <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
-            <p class="text-xs text-slate-400">Sisa Waktu Hukuman (Pelanggaran ke-<span id="penalty-count-text">1</span>)</p>
-            <div class="text-6xl font-black text-red-500 my-2" id="penalty-timer">10</div>
-            <p class="text-xs text-slate-400">detik</p>
+            <p class="text-xs text-slate-400 mb-2">Minta pengawas untuk memasukkan Token Pembuka Kunci:</p>
+            
+            <!-- Input Token -->
+            <input type="password" id="input-token-pengawas" placeholder="Masukkan Token Pengawas" 
+              class="w-full text-center text-lg font-bold bg-slate-900 border border-slate-700 focus:border-red-500 rounded-lg py-2.5 px-3 text-white outline-none mb-3 tracking-widest">
+            
+            <button onclick="verifikasiToken()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-lg text-sm transition">
+              🔓 Buka Kunci Layar
+            </button>
+            
+            <p id="token-error-msg" class="text-xs text-red-400 mt-2 hidden font-semibold">⚠️ Token salah! Hubungi pengawas ujian.</p>
           </div>
 
-          <p class="text-xs text-red-400 font-semibold leading-relaxed" id="penalty-warning-text">
-            Suara alarm telah aktif! Penalti bertambah +10 detik untuk setiap pelanggaran berikutnya. Maksimal 3x pelanggaran.
+          <p class="text-[11px] text-slate-400 leading-relaxed">
+            Ujian terhenti. Jawaban kamu tersimpan secara aman di sistem.
           </p>
         </div>
       </div>
@@ -96,12 +104,12 @@
   <!-- ==================== JAVASCRIPT SYSTEM ==================== -->
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpxz4rgc9CLO_rGEZf5EwtlZaiFSz9EdQv_uMHfTDSP_myc_RYuN4cZyJe0I_XJA/exec";
+    const TOKEN_PENGAWAS = "123456"; // Ganti dengan Token/PIN Rahasia Pengawas
 
     let isExamActive = false;
+    let isLocked = false;
     let violationCount = 0;
     const maxViolations = 3;
-    let penaltyTimer = null;
-    let penaltySecondsLeft = 0;
     let audioCtx = null;
 
     // Direct Load Jadwal saat halaman pertama kali dibuka
@@ -109,7 +117,7 @@
       loadJadwal();
     });
 
-    // --- SINTESIS ALARM SUARA (WEB AUDIO API - TANPA SPESIFIK FILE MP3) ---
+    // --- SINTESIS ALARM SUARA (WEB AUDIO API - TANPA FILE MP3) ---
     function playAlarmSound() {
       try {
         if (!audioCtx) {
@@ -123,7 +131,6 @@
         const gain = audioCtx.createGain();
 
         osc.type = 'sawtooth';
-        // Pola Frekuensi Suara Sirine Polisi/Darurat
         osc.frequency.setValueAtTime(900, audioCtx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.25);
         osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.5);
@@ -222,9 +229,8 @@
 
     // --- MASUK MODE UJIAN & FULLSCREEN ---
     function mulaiUjian(mapel, linkForm) {
-      if (!confirm(`Kamu akan memulai ujian ${mapel}.\n\nPERINGATAN SISWA:\n1. Layar wajib Fullscreen.\n2. Dilarang keluar tab, split-screen, atau buka Google.\n3. Setiap pelanggaran memicu alarm suara & pembekuan layar.`)) return;
+      if (!confirm(`Kamu akan memulai ujian ${mapel}.\n\nPERINGATAN SISWA:\n1. Layar wajib Fullscreen.\n2. Dilarang keluar tab, split-screen, atau buka Google.\n3. Setiap pelanggaran memicu alarm suara & membutuhkan Token Pengawas untuk membuka kembali.`)) return;
 
-      // Inisialisasi Audio Context saat diklik pertama kali oleh user
       try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       } catch (e) {}
@@ -234,8 +240,8 @@
       document.getElementById("page-exam").classList.remove("hidden");
       
       isExamActive = true;
+      isLocked = false;
       violationCount = 0;
-      penaltySecondsLeft = 0;
       updateViolationBadge();
 
       // Minta layar Fullscreen
@@ -247,73 +253,66 @@
       }
     }
 
-    // --- SISTEM KECURANGAN & PENALTI BERTINGKAT ---
+    // --- SISTEM KECURANGAN & KUNCIAN TOKEN PENGAWAS ---
     function triggerViolation(reason) {
-      if (!isExamActive) return;
+      if (!isExamActive || isLocked) return;
 
       violationCount++;
       updateViolationBadge();
 
-      // Bunyikan Alarm Sirine Keras!
       playAlarmSound();
 
-      // Batas Maksimal Pelanggaran
       if (violationCount >= maxViolations) {
         alert("PERINGATAN TERAKHIR!\nKamu telah melanggar aturan ujian sebanyak 3 kali. Ujian dihentikan paksa!");
         selesaiPaksaUjian();
         return;
       }
 
-      // Hitung durasi hukuman: Pelanggaran * 10 detik (10s, 20s, 30s)
-      const addedPenalty = violationCount * 10;
-      showPenaltyOverlay(reason, addedPenalty);
+      showTokenLockOverlay(reason);
     }
 
-    function showPenaltyOverlay(reason, duration) {
+    function showTokenLockOverlay(reason) {
+      isLocked = true;
       const overlay = document.getElementById("penalty-overlay");
-      const countText = document.getElementById("penalty-count-text");
-      const timerText = document.getElementById("penalty-timer");
       const reasonText = document.getElementById("penalty-reason");
+      const inputToken = document.getElementById("input-token-pengawas");
+      const errorMsg = document.getElementById("token-error-msg");
 
-      penaltySecondsLeft = duration;
-      countText.innerText = violationCount;
       reasonText.innerText = reason;
-      timerText.innerText = penaltySecondsLeft;
-
+      inputToken.value = "";
+      errorMsg.classList.add("hidden");
       overlay.classList.remove("hidden");
+    }
 
-      if (penaltyTimer) clearInterval(penaltyTimer);
+    // --- FUNGSI VERIFIKASI TOKEN PENGAWAS ---
+    function verifikasiToken() {
+      const inputToken = document.getElementById("input-token-pengawas").value;
+      const errorMsg = document.getElementById("token-error-msg");
+      const overlay = document.getElementById("penalty-overlay");
 
-      penaltyTimer = setInterval(() => {
-        penaltySecondsLeft--;
-        timerText.innerText = penaltySecondsLeft;
+      if (inputToken === TOKEN_PENGAWAS) {
+        isLocked = false;
+        overlay.classList.add("hidden");
+        errorMsg.classList.add("hidden");
 
-        // Tiap detik bunyikan alarm pendek saat hukuman
-        if (penaltySecondsLeft % 2 === 0) {
-          playAlarmSound();
-        }
-
-        if (penaltySecondsLeft <= 0) {
-          clearInterval(penaltyTimer);
-          penaltyTimer = null;
-          overlay.classList.add("hidden");
-
-          // Kembalikan ke fullscreen jika terlepas
-          const docEl = document.documentElement;
-          if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            if (docEl.requestFullscreen) {
-              docEl.requestFullscreen().catch(() => {});
-            } else if (docEl.webkitRequestFullscreen) {
-              docEl.webkitRequestFullscreen();
-            }
+        // Kembalikan ke mode Fullscreen
+        const docEl = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          if (docEl.requestFullscreen) {
+            docEl.requestFullscreen().catch(() => {});
+          } else if (docEl.webkitRequestFullscreen) {
+            docEl.webkitRequestFullscreen();
           }
         }
-      }, 1000);
+      } else {
+        errorMsg.classList.remove("hidden");
+        playAlarmSound();
+      }
     }
 
     // --- DETEKSI PINDAH TAB / MINIMIZE ---
     document.addEventListener("visibilitychange", function() {
-      if (document.hidden && isExamActive && penaltySecondsLeft <= 0) {
+      if (document.hidden && isExamActive) {
         triggerViolation("Terdeteksi meninggalkan layar ujian / berpindah aplikasi / Alt-Tab.");
       }
     });
@@ -323,7 +322,7 @@
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     function handleFullscreenChange() {
-      if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive && penaltySecondsLeft <= 0) {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive) {
         triggerViolation("Terdeteksi keluar dari mode Fullscreen / menekan Esc / mencoba Split Screen.");
       }
     }
@@ -332,7 +331,7 @@
     window.addEventListener('resize', function() {
       if (!isExamActive) return;
       const heightRatio = window.innerHeight / screen.height;
-      if (heightRatio < 0.75 && penaltySecondsLeft <= 0) {
+      if (heightRatio < 0.75) {
         triggerViolation("Terdeteksi menggunakan Mode Layar Belah (Split Screen) atau Floating Window.");
       }
     });
@@ -365,7 +364,7 @@
 
     function selesaiPaksaUjian() {
       isExamActive = false;
-      if (penaltyTimer) clearInterval(penaltyTimer);
+      isLocked = false;
       document.getElementById("iframe-form").src = "about:blank";
       document.getElementById("page-exam").classList.add("hidden");
 
@@ -385,7 +384,6 @@
     document.addEventListener('selectstart', e => e.preventDefault());
 
     document.addEventListener('keydown', e => {
-      // Blokir F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+C, Ctrl+V, Alt+Tab (sebagian browser)
       if (
         e.keyCode === 123 || 
         (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
@@ -402,49 +400,30 @@
       }
     });
 
-// --- TRIK PENGHANCUR CLIPBOARD (ANTI-PASTE DARI LUAR) ---
-function hancurkanClipboard() {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    // Timpa isi clipboard dengan teks peringatan
-    navigator.clipboard.writeText("⚠️ DILARANG COPAS SAAT UJIAN! ⚠️").catch(() => {});
-  }
-}
+    // --- TRIK PENGHANCUR CLIPBOARD (ANTI-PASTE DARI LUAR) ---
+    function hancurkanClipboard() {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText("⚠️ DILARANG COPAS SAAT UJIAN! ⚠️").catch(() => {});
+      }
+    }
 
-// 1. Kosongkan clipboard begitu siswa kembali ke layar ujian
-window.addEventListener('focus', function() {
-  if (isExamActive) {
-    hancurkanClipboard();
-  }
-});
+    window.addEventListener('focus', function() {
+      if (isExamActive) {
+        hancurkanClipboard();
+      }
+    });
 
-// 2. Kosongkan clipboard saat status tab berubah menjadi aktif kembali
-document.addEventListener("visibilitychange", function() {
-  if (!document.hidden && isExamActive) {
-    hancurkanClipboard();
-  }
-});
+    document.addEventListener("visibilitychange", function() {
+      if (!document.hidden && isExamActive) {
+        hancurkanClipboard();
+      }
+    });
 
-// 3. Kosongkan clipboard secara berkala setiap 2 detik saat ujian berjalan
-setInterval(() => {
-  if (isExamActive) {
-    hancurkanClipboard();
-  }
-}, 2000);
-
-// Buat layar buram saat browser kehilangan fokus (termasuk saat memicu SS)
-window.addEventListener('blur', function() {
-  if (isExamActive) {
-    document.body.style.filter = 'blur(20px)';
-  }
-});
-
-// Kembalikan layar normal saat kembali ke web
-window.addEventListener('focus', function() {
-  if (isExamActive) {
-    document.body.style.filter = 'none';
-  }
-});
-    
+    setInterval(() => {
+      if (isExamActive) {
+        hancurkanClipboard();
+      }
+    }, 2000);
   </script>
 </body>
 </html>
