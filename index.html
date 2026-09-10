@@ -4,15 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aplikasi Web Ujian Anti-Curang</title>
-  <!-- Framework CSS Tailwind via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
   <style>
     html, body {
-  -webkit-touch-callout: none; /* Mencegah pop-up menu bawaan iOS / Safari saat di-hold */
-}
-    /* Mencegah efek pull-to-refresh / swipe down di HP & seleksi teks */
-    html, body {
+      -webkit-touch-callout: none;
       overscroll-behavior-y: none;
       touch-action: pan-x pan-y;
       -webkit-user-select: none;
@@ -24,17 +20,49 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 font-sans">
 
-  <!-- ==================== 1. HALAMAN DASHBOARD (UTAMA) ==================== -->
-  <div id="page-dashboard" class="min-h-screen p-4 max-w-3xl mx-auto">
-    <!-- Header Sistem -->
+  <!-- ==================== 1. HALAMAN LOGIN ==================== -->
+  <div id="page-login" class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+    <div class="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl">
+      <div class="text-center mb-6">
+        <div class="text-4xl mb-2">📝</div>
+        <h2 class="text-2xl font-bold text-slate-800">Ujian Online</h2>
+        <p class="text-xs text-slate-500 mt-1">Masukkan NISN / Username dan Password kamu</p>
+      </div>
+
+      <form id="form-login" onsubmit="prosesLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Username / NISN</label>
+          <input type="text" id="login-username" required placeholder="Masukkan Username" 
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm">
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Password</label>
+          <input type="password" id="login-password" required placeholder="Masukkan Password" 
+            class="w-full px-4 py-2.5 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm">
+        </div>
+
+        <div id="login-error" class="text-xs text-red-500 font-semibold text-center hidden"></div>
+
+        <button type="submit" id="btn-login" 
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-lg transition shadow-md hover:shadow-lg text-sm flex justify-center items-center gap-2">
+          <span>Masuk Aplikasi</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 2. HALAMAN DASHBOARD (UTAMA) ==================== -->
+  <div id="page-dashboard" class="hidden min-h-screen p-4 max-w-3xl mx-auto">
+    <!-- Header Sistem & Profil Siswa -->
     <div class="bg-indigo-600 text-white p-5 rounded-2xl shadow-md mb-6 flex justify-between items-center">
       <div>
-        <p class="text-xs text-indigo-200 uppercase tracking-wider font-semibold">Ruang Ujian Online</p>
-        <h2 class="text-xl font-bold">Portal Siswa 1</h2>
-        <p class="text-sm text-indigo-100">Silakan pilih mata pelajaran di bawah</p>
+        <p class="text-xs text-indigo-200 uppercase tracking-wider font-semibold">Selamat Datang,</p>
+        <h2 class="text-xl font-bold" id="user-display-name">Nama Siswa</h2>
+        <p class="text-xs text-indigo-100 mt-0.5">Kelas: <span id="user-display-class">-</span></p>
       </div>
-      <button onclick="loadJadwal()" class="bg-indigo-700 hover:bg-indigo-800 text-xs text-white px-3 py-2 rounded-lg transition">
-        🔄 Refresh
+      <button onclick="prosesLogout()" class="bg-indigo-700 hover:bg-red-600 text-xs text-white px-3 py-2 rounded-lg transition font-medium">
+        🚪 Keluar
       </button>
     </div>
 
@@ -46,11 +74,11 @@
     </div>
 
     <div id="list-jadwal" class="space-y-4">
-      <!-- Card Ujian akan di-generate otomatis oleh JS -->
+      <!-- Card Ujian di-generate oleh JS -->
     </div>
   </div>
 
-  <!-- ==================== 2. HALAMAN RUANG UJIAN (FULLSCREEN) ==================== -->
+  <!-- ==================== 3. HALAMAN RUANG UJIAN ==================== -->
   <div id="page-exam" class="hidden fixed inset-0 bg-white z-50 flex flex-col">
     <!-- Bar Atas Ujian -->
     <div class="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center text-sm shadow">
@@ -61,7 +89,6 @@
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <!-- Tombol Refresh Manual -->
         <button onclick="refreshForm()" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold px-3 py-1.5 rounded flex items-center gap-1">
           🔄 Refresh Form
         </button>
@@ -75,7 +102,7 @@
     <div class="flex-1 w-full bg-slate-200 relative">
       <iframe id="iframe-form" class="w-full h-full border-none" src="about:blank"></iframe>
 
-      <!-- OVERLAY BEKUKAN UJIAN (BUTUH TOKEN PENGAWAS) -->
+      <!-- OVERLAY BEKUKAN UJIAN (TOKEN PENGAWAS) -->
       <div id="penalty-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center text-white text-center p-6 hidden">
         <div class="max-w-md w-full bg-slate-900 p-6 rounded-2xl border border-red-500/50 shadow-2xl">
           <div class="text-5xl mb-2">🚨</div>
@@ -85,7 +112,6 @@
           <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 mb-4">
             <p class="text-xs text-slate-400 mb-2">Minta pengawas untuk memasukkan Token Pembuka Kunci:</p>
             
-            <!-- Input Token -->
             <input type="password" id="input-token-pengawas" placeholder="Masukkan Token Pengawas" 
               class="w-full text-center text-lg font-bold bg-slate-900 border border-slate-700 focus:border-red-500 rounded-lg py-2.5 px-3 text-white outline-none mb-3 tracking-widest">
             
@@ -107,20 +133,82 @@
   <!-- ==================== JAVASCRIPT SYSTEM ==================== -->
   <script>
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwpxz4rgc9CLO_rGEZf5EwtlZaiFSz9EdQv_uMHfTDSP_myc_RYuN4cZyJe0I_XJA/exec";
-    const TOKEN_PENGAWAS = "123456"; // Ganti dengan Token/PIN Rahasia Pengawas
+    const TOKEN_PENGAWAS = "123456";
 
+    let currentUser = null;
     let isExamActive = false;
     let isLocked = false;
     let violationCount = 0;
     const maxViolations = 3;
     let audioCtx = null;
 
-    // Direct Load Jadwal saat halaman pertama kali dibuka
     document.addEventListener("DOMContentLoaded", () => {
-      loadJadwal();
+      cekSesiLogin();
     });
 
-    // --- SINTESIS ALARM SUARA (WEB AUDIO API - TANPA FILE MP3) ---
+    // --- CEK SESI LOGIN DI LOCALSTORAGE ---
+    function cekSesiLogin() {
+      const savedUser = localStorage.getItem("siswa_data");
+      if (savedUser) {
+        currentUser = JSON.parse(savedUser);
+        tampilkanDashboard();
+      } else {
+        document.getElementById("page-login").classList.remove("hidden");
+        document.getElementById("page-dashboard").classList.add("hidden");
+        document.getElementById("page-exam").classList.add("hidden");
+      }
+    }
+
+    // --- PROSES LOGIN SISWA ---
+    async function prosesLogin(e) {
+      e.preventDefault();
+      const usernameInput = document.getElementById("login-username").value;
+      const passwordInput = document.getElementById("login-password").value;
+      const errorDiv = document.getElementById("login-error");
+      const btnLogin = document.getElementById("btn-login");
+
+      errorDiv.classList.add("hidden");
+      btnLogin.disabled = true;
+      btnLogin.innerText = "Memeriksa Data...";
+
+      try {
+        const response = await fetch(`${SCRIPT_URL}?action=login&username=${encodeURIComponent(usernameInput)}&password=${encodeURIComponent(passwordInput)}`);
+        const result = await response.json();
+
+        if (result.status === "success") {
+          currentUser = result;
+          localStorage.setItem("siswa_data", JSON.stringify(result));
+          tampilkanDashboard();
+        } else {
+          errorDiv.innerText = result.message || "Login gagal, periksa username & password!";
+          errorDiv.classList.remove("hidden");
+        }
+      } catch (err) {
+        errorDiv.innerText = "Gagal terhubung ke server! Periksa koneksi internet.";
+        errorDiv.classList.remove("hidden");
+      } finally {
+        btnLogin.disabled = false;
+        btnLogin.innerText = "Masuk Aplikasi";
+      }
+    }
+
+    function tampilkanDashboard() {
+      document.getElementById("page-login").classList.add("hidden");
+      document.getElementById("page-dashboard").classList.remove("hidden");
+      document.getElementById("user-display-name").innerText = currentUser.nama;
+      document.getElementById("user-display-class").innerText = currentUser.kelas;
+      loadJadwal();
+    }
+
+    function prosesLogout() {
+      if (confirm("Apakah kamu yakin ingin keluar dari akun ini?")) {
+        localStorage.removeItem("siswa_data");
+        currentUser = null;
+        location.reload();
+      }
+    }
+
+    // --- SINTESIS ALARM SUARA ---
     function playAlarmSound() {
       try {
         if (!audioCtx) {
@@ -147,12 +235,9 @@
 
         osc.start();
         osc.stop(audioCtx.currentTime + 1.0);
-      } catch (e) {
-        console.log("Gagal memutar audio:", e);
-      }
+      } catch (e) {}
     }
 
-    // --- HELPER UNTUK PARSING WAKTU DARI SHEETS ---
     function parseDateTime(dateStr, timeStr) {
       if (!dateStr || !timeStr) return new Date();
       let y, m, d;
@@ -172,12 +257,10 @@
       }
 
       const timeParts = timeStr.split(':').map(Number);
-      const hh = timeParts[0] || 0;
-      const mm = timeParts[1] || 0;
-      return new Date(y, m - 1, d, hh, mm, 0);
+      return new Date(y, m - 1, d, timeParts[0] || 0, timeParts[1] || 0, 0);
     }
 
-    // --- AMBIL JADWAL UJIAN & KUNCIAN WAKTU REAL-TIME ---
+    // --- AMBIL JADWAL UJIAN ---
     async function loadJadwal() {
       const container = document.getElementById("list-jadwal");
       container.innerHTML = "<p class='text-slate-500 text-center py-4'>Mengecek jadwal ujian...</p>";
@@ -198,13 +281,13 @@
             let statusBadge = '';
 
             if (now < startTime) {
-              buttonHtml = `<button disabled class="bg-amber-500 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90 shadow-sm">⏳ Belum Dimulai</button>`;
+              buttonHtml = `<button disabled class="bg-amber-500 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90">⏳ Belum Dimulai</button>`;
               statusBadge = `<span class="bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5 rounded font-medium ml-2">Belum Buka</span>`;
             } else if (now > endTime) {
-              buttonHtml = `<button disabled class="bg-slate-400 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90 shadow-sm">🔒 Sudah Selesai</button>`;
+              buttonHtml = `<button disabled class="bg-slate-400 text-white font-semibold text-xs px-4 py-2.5 rounded-lg cursor-not-allowed opacity-90">🔒 Sudah Selesai</button>`;
               statusBadge = `<span class="bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-medium ml-2">Selesai</span>`;
             } else {
-              buttonHtml = `<button onclick="mulaiUjian('${item.mapel}', '${item.link_form}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-md hover:shadow-lg">🚀 Mulai Ujian</button>`;
+              buttonHtml = `<button onclick="mulaiUjian('${item.mapel}', '${item.link_form}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm px-4 py-2.5 rounded-lg transition shadow-md">🚀 Mulai Ujian</button>`;
               statusBadge = `<span class="bg-emerald-100 text-emerald-800 text-[10px] px-2 py-0.5 rounded font-medium ml-2 animate-pulse">Sedang Berlangsung</span>`;
             }
 
@@ -230,9 +313,9 @@
       }
     }
 
-    // --- MASUK MODE UJIAN & FULLSCREEN ---
+    // --- MASUK UJIAN ---
     function mulaiUjian(mapel, linkForm) {
-      if (!confirm(`Kamu akan memulai ujian ${mapel}.\n\nPERINGATAN SISWA:\n1. Layar wajib Fullscreen.\n2. Dilarang keluar tab, split-screen, atau buka Google.\n3. Setiap pelanggaran memicu alarm suara & membutuhkan Token Pengawas untuk membuka kembali.`)) return;
+      if (!confirm(`Kamu akan memulai ujian ${mapel}.\n\nAturan:\n1. Layar Wajib Fullscreen.\n2. Dilarang pindah tab / aplikasi.\n3. Setiap pelanggaran akan tercatat di sistem pengawas.`)) return;
 
       try {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -247,26 +330,42 @@
       violationCount = 0;
       updateViolationBadge();
 
-      // Minta layar Fullscreen
       const docEl = document.documentElement;
-      if (docEl.requestFullscreen) {
-        docEl.requestFullscreen().catch(() => {});
-      } else if (docEl.webkitRequestFullscreen) {
-        docEl.webkitRequestFullscreen();
-      }
+      if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
     }
 
-    // --- SISTEM KECURANGAN & KUNCIAN TOKEN PENGAWAS ---
+    // --- KIRIM LAPORAN KECURANGAN KE GOOGLE SHEET ---
+    function kirimLaporanPelanggaran(reason) {
+      if (!currentUser || !currentUser.username) return;
+
+      const payload = {
+        action: "logViolation",
+        username: currentUser.username,
+        reason: reason
+      };
+
+      fetch(SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      }).catch(err => console.log("Gagal log kecurangan:", err));
+    }
+
+    // --- SISTEM DETEKSI KECURANGAN ---
     function triggerViolation(reason) {
       if (!isExamActive || isLocked) return;
 
       violationCount++;
       updateViolationBadge();
-
       playAlarmSound();
 
+      // Kirim data kecurangan secara otomatis ke Sheet
+      kirimLaporanPelanggaran(reason);
+
       if (violationCount >= maxViolations) {
-        alert("PERINGATAN TERAKHIR!\nKamu telah melanggar aturan ujian sebanyak 3 kali. Ujian dihentikan paksa!");
+        alert("Kamu telah melanggar aturan ujian sebanyak 3 kali. Ujian dihentikan paksa!");
         selesaiPaksaUjian();
         return;
       }
@@ -277,17 +376,12 @@
     function showTokenLockOverlay(reason) {
       isLocked = true;
       const overlay = document.getElementById("penalty-overlay");
-      const reasonText = document.getElementById("penalty-reason");
-      const inputToken = document.getElementById("input-token-pengawas");
-      const errorMsg = document.getElementById("token-error-msg");
-
-      reasonText.innerText = reason;
-      inputToken.value = "";
-      errorMsg.classList.add("hidden");
+      document.getElementById("penalty-reason").innerText = reason;
+      document.getElementById("input-token-pengawas").value = "";
+      document.getElementById("token-error-msg").classList.add("hidden");
       overlay.classList.remove("hidden");
     }
 
-    // --- FUNGSI VERIFIKASI TOKEN PENGAWAS ---
     function verifikasiToken() {
       const inputToken = document.getElementById("input-token-pengawas").value;
       const errorMsg = document.getElementById("token-error-msg");
@@ -298,14 +392,10 @@
         overlay.classList.add("hidden");
         errorMsg.classList.add("hidden");
 
-        // Kembalikan ke mode Fullscreen
         const docEl = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-          if (docEl.requestFullscreen) {
-            docEl.requestFullscreen().catch(() => {});
-          } else if (docEl.webkitRequestFullscreen) {
-            docEl.webkitRequestFullscreen();
-          }
+          if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
+          else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
         }
       } else {
         errorMsg.classList.remove("hidden");
@@ -313,29 +403,26 @@
       }
     }
 
-    // --- DETEKSI PINDAH TAB / MINIMIZE ---
+    // Event Listener Keamanan
     document.addEventListener("visibilitychange", function() {
       if (document.hidden && isExamActive) {
-        triggerViolation("Terdeteksi meninggalkan layar ujian / berpindah aplikasi / Alt-Tab.");
+        triggerViolation("Terdeteksi meninggalkan layar ujian / berpindah aplikasi.");
       }
     });
 
-    // --- DETEKSI KELUAR FULLSCREEN / SPLIT SCREEN ---
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
     function handleFullscreenChange() {
       if (!document.fullscreenElement && !document.webkitFullscreenElement && isExamActive) {
-        triggerViolation("Terdeteksi keluar dari mode Fullscreen / menekan Esc / mencoba Split Screen.");
+        triggerViolation("Terdeteksi keluar dari mode Fullscreen.");
       }
     }
 
-    // --- DETEKSI FLOATING WINDOW / UKURAN VIEWPORT KECIL ---
     window.addEventListener('resize', function() {
       if (!isExamActive) return;
-      const heightRatio = window.innerHeight / screen.height;
-      if (heightRatio < 0.75) {
-        triggerViolation("Terdeteksi menggunakan Mode Layar Belah (Split Screen) atau Floating Window.");
+      if ((window.innerHeight / screen.height) < 0.75) {
+        triggerViolation("Terdeteksi menggunakan Mode Layar Belah (Split Screen).");
       }
     });
 
@@ -350,17 +437,15 @@
       }
     }
 
-    // --- REFRESH FORM MANUAL ---
     function refreshForm() {
-      if (confirm("Apakah kamu yakin ingin memuat ulang Google Form? Isian yang belum dikirim mungkin akan terhapus.")) {
+      if (confirm("Muat ulang Google Form? Isian belum dikirim mungkin terhapus.")) {
         const iframe = document.getElementById("iframe-form");
         iframe.src = iframe.src;
       }
     }
 
-    // --- SELESAI / KELUAR UJIAN ---
     function konfirmasiSelesai() {
-      if (confirm("Apakah kamu yakin sudah mengirim (submit) Google Form dan ingin menyelesaikan ujian?")) {
+      if (confirm("Yakin ingin menyelesaikan ujian?")) {
         selesaiPaksaUjian();
       }
     }
@@ -371,18 +456,14 @@
       document.getElementById("iframe-form").src = "about:blank";
       document.getElementById("page-exam").classList.add("hidden");
 
-      if (document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      } else if (document.webkitExitFullscreen) {
-        document.webkitExitFullscreen();
-      }
+      if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
     }
 
-    // --- BLOKIR KLIK KANAN, COPY, PASTE, DRAG & INSPECT ---
+    // Pemblokiran Shortcut Keyboard & Clipboard
     document.addEventListener('contextmenu', e => e.preventDefault());
     document.addEventListener('copy', e => e.preventDefault());
     document.addEventListener('paste', e => e.preventDefault());
-    document.addEventListener('cut', e => e.preventDefault());
     document.addEventListener('dragstart', e => e.preventDefault());
     document.addEventListener('selectstart', e => e.preventDefault());
 
@@ -390,85 +471,21 @@
       if (
         e.keyCode === 123 || 
         (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) ||
-        (e.ctrlKey && e.keyCode === 85) ||
-        (e.ctrlKey && e.keyCode === 67) ||
-        (e.ctrlKey && e.keyCode === 86) ||
-        (e.ctrlKey && e.keyCode === 88) ||
-        (e.ctrlKey && e.keyCode === 65)
+        (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 88 || e.keyCode === 65))
       ) {
         e.preventDefault();
-        if (isExamActive) {
-          triggerViolation("Terdeteksi menggunakan kombinasi tombol keyboard terlarang!");
-        }
+        if (isExamActive) triggerViolation("Mencoba shortcut keyboard terlarang!");
       }
     });
 
-    // --- TRIK PENGHANCUR CLIPBOARD (ANTI-PASTE DARI LUAR) ---
     function hancurkanClipboard() {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText("⚠️ DILARANG COPAS SAAT UJIAN! ⚠️").catch(() => {});
       }
     }
 
-    window.addEventListener('focus', function() {
-      if (isExamActive) {
-        hancurkanClipboard();
-      }
-    });
-
-    document.addEventListener("visibilitychange", function() {
-      if (!document.hidden && isExamActive) {
-        hancurkanClipboard();
-      }
-    });
-
-    setInterval(() => {
-      if (isExamActive) {
-        hancurkanClipboard();
-      }
-    }, 2000);
-
-// --- DETEKSI SENTUHAN LAMA (LONG PRESS WITH TOLERANCE) ---
-let touchTimer = null;
-let startX = 0;
-let startY = 0;
-const LONG_PRESS_DURATION = 400; // 0,4 detik
-const MOVE_TOLERANCE = 10; // Toleransi pergeseran jari dalam piksel
-
-document.addEventListener('touchstart', function(e) {
-  if (!isExamActive || isLocked) return;
-
-  // Simpan koordinat awal sentuhan
-  startX = e.touches[0].clientX;
-  startY = e.touches[0].clientY;
-
-  touchTimer = setTimeout(() => {
-    triggerViolation("Terdeteksi menahan sentuhan layar (Long Press) / mencoba memicu menu HP!");
-  }, LONG_PRESS_DURATION);
-}, { passive: true });
-
-document.addEventListener('touchmove', function(e) {
-  if (!touchTimer) return;
-
-  // Hitung seberapa jauh jari bergeser dari titik awal
-  const moveX = Math.abs(e.touches[0].clientX - startX);
-  const moveY = Math.abs(e.touches[0].clientY - startY);
-
-  // Jika pergeseran melebihi 10px (berarti siswa memang berniat scrolling), batalkan long press
-  if (moveX > MOVE_TOLERANCE || moveY > MOVE_TOLERANCE) {
-    clearTimeout(touchTimer);
-    touchTimer = null;
-  }
-}, { passive: true });
-
-document.addEventListener('touchend', () => {
-  if (touchTimer) clearTimeout(touchTimer);
-});
-
-document.addEventListener('touchcancel', () => {
-  if (touchTimer) clearTimeout(touchTimer);
-});
-    
+    window.addEventListener('focus', () => { if (isExamActive) hancurkanClipboard(); });
+    setInterval(() => { if (isExamActive) hancurkanClipboard(); }, 2000);
   </script>
 </body>
 </html>
