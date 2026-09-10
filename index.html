@@ -30,7 +30,7 @@
     <div class="bg-indigo-600 text-white p-5 rounded-2xl shadow-md mb-6 flex justify-between items-center">
       <div>
         <p class="text-xs text-indigo-200 uppercase tracking-wider font-semibold">Ruang Ujian Online</p>
-        <h2 class="text-xl font-bold">Portal Siswa</h2>
+        <h2 class="text-xl font-bold">Portal Siswa 1</h2>
         <p class="text-sm text-indigo-100">Silakan pilih mata pelajaran di bawah</p>
       </div>
       <button onclick="loadJadwal()" class="bg-indigo-700 hover:bg-indigo-800 text-xs text-white px-3 py-2 rounded-lg transition">
@@ -428,23 +428,46 @@
       }
     }, 2000);
 
-// --- DETEKSI SENTUHAN LAMA (LONG PRESS) ---
+// --- DETEKSI SENTUHAN LAMA (LONG PRESS WITH TOLERANCE) ---
 let touchTimer = null;
-const LONG_PRESS_DURATION = 500; // Waktu tahanan dalam milidetik (0.5 detik)
+let startX = 0;
+let startY = 0;
+const LONG_PRESS_DURATION = 400; // 0,4 detik
+const MOVE_TOLERANCE = 10; // Toleransi pergeseran jari dalam piksel
 
 document.addEventListener('touchstart', function(e) {
   if (!isExamActive || isLocked) return;
 
-  // Jalankan timer begitu jari menyentuh layar
+  // Simpan koordinat awal sentuhan
+  startX = e.touches[0].clientX;
+  startY = e.touches[0].clientY;
+
   touchTimer = setTimeout(() => {
     triggerViolation("Terdeteksi menahan sentuhan layar (Long Press) / mencoba memicu menu HP!");
   }, LONG_PRESS_DURATION);
 }, { passive: true });
 
-// Batalkan timer jika jari diangkat, digeser (scroll), atau batal menyentuh
-document.addEventListener('touchend', () => clearTimeout(touchTimer));
-document.addEventListener('touchmove', () => clearTimeout(touchTimer));
-document.addEventListener('touchcancel', () => clearTimeout(touchTimer));
+document.addEventListener('touchmove', function(e) {
+  if (!touchTimer) return;
+
+  // Hitung seberapa jauh jari bergeser dari titik awal
+  const moveX = Math.abs(e.touches[0].clientX - startX);
+  const moveY = Math.abs(e.touches[0].clientY - startY);
+
+  // Jika pergeseran melebihi 10px (berarti siswa memang berniat scrolling), batalkan long press
+  if (moveX > MOVE_TOLERANCE || moveY > MOVE_TOLERANCE) {
+    clearTimeout(touchTimer);
+    touchTimer = null;
+  }
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (touchTimer) clearTimeout(touchTimer);
+});
+
+document.addEventListener('touchcancel', () => {
+  if (touchTimer) clearTimeout(touchTimer);
+});
     
   </script>
 </body>
