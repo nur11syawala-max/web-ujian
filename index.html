@@ -56,6 +56,22 @@
     .ios-btn-active:active {
       transform: scale(0.96);
     }
+
+    /* EFEK PELANGGARAN: vignette merah yang berdenyut halus di tepi layar, tetap clean */
+    @keyframes violationVignette {
+      0%, 100% { box-shadow: inset 0 0 0 0 rgba(239, 68, 68, 0); }
+      50% { box-shadow: inset 0 0 140px 10px rgba(239, 68, 68, 0.45); }
+    }
+    .violation-vignette {
+      animation: violationVignette 1.8s ease-in-out infinite;
+    }
+    @keyframes violationRing {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+      100% { box-shadow: 0 0 0 14px rgba(239, 68, 68, 0); }
+    }
+    .violation-ring {
+      animation: violationRing 1.6s ease-out infinite;
+    }
   </style>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 relative overflow-x-hidden selection:bg-blue-500 selection:text-white">
@@ -232,73 +248,82 @@
   </div>
 
   <!-- OVERLAY AKUN TERKUNCI MASSAL (di luar page-dashboard & page-exam agar selalu bisa tampil di halaman manapun) -->
-  <div id="dashboard-lock-overlay" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xl z-[300] flex flex-col items-center justify-center p-6 hidden">
-    <div class="glass-card max-w-md w-full p-8 rounded-[24px] text-center shadow-2xl">
-      <h3 class="text-lg font-black text-slate-900">Akun Terkunci Total</h3>
-      <p class="text-xs text-slate-500 my-3 leading-relaxed">Tercatat <b class="text-red-600 font-bold" id="lock-count-display">3</b> kali pelanggaran sistem. Hubungi Proktor untuk membuka pembekuan.</p>
-      <button onclick="kirimRequestBukaPembekuan()" id="btn-req-pembekuan" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl text-xs transition shadow-lg shadow-red-500/25 mb-3">
-        📩 Minta Buka Pembekuan ke Proktor
-      </button>
-      <button onclick="prosesLogout()" class="text-xs font-bold text-slate-500 hover:underline">Keluar Akun</button>
+  <div id="dashboard-lock-overlay" class="violation-vignette fixed inset-0 bg-gradient-to-br from-red-950/80 via-slate-950/85 to-red-950/80 backdrop-blur-xl z-[300] flex flex-col items-center justify-center p-6 hidden">
+    <div class="glass-card max-w-md w-full rounded-[24px] text-center shadow-2xl border border-red-200/60 overflow-hidden" style="box-shadow: 0 25px 60px -12px rgba(239,68,68,0.35);">
+      <div class="h-1.5 w-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
+      <div class="p-8">
+        <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+        <h3 class="text-lg font-black text-red-700 tracking-tight">Akun Terkunci Total</h3>
+        <p class="text-xs text-slate-500 my-3 leading-relaxed">Tercatat <b class="text-red-600 font-bold" id="lock-count-display">3</b> kali pelanggaran sistem. Hubungi Proktor untuk membuka pembekuan.</p>
+        <button onclick="kirimRequestBukaPembekuan()" id="btn-req-pembekuan" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl text-xs transition shadow-lg shadow-red-500/25 mb-3">
+          📩 Minta Buka Pembekuan ke Proktor
+        </button>
+        <button onclick="prosesLogout()" class="text-xs font-bold text-slate-500 hover:underline">Keluar Akun</button>
+      </div>
     </div>
   </div>
 
   <!-- HALAMAN RUANG UJIAN -->
   <div id="page-exam" class="hidden fixed inset-0 bg-slate-950 z-50 flex flex-col overflow-hidden">
-    <div class="glass-dark px-4 py-2.5 flex justify-between items-center text-xs shadow-md border-b border-white/10 z-20">
-      <div class="flex items-center gap-2 font-semibold text-slate-200">
-        <span id="realtime-clock" class="tracking-wide">-- WIB</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="refreshForm()" class="ios-btn-active bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-semibold px-3 py-1.5 rounded-xl transition backdrop-blur-md">Refresh Form</button>
-        <button onclick="konfirmasiSelesai()" class="ios-btn-active bg-red-600/90 hover:bg-red-600 text-white border border-red-500/30 text-xs font-bold px-3 py-1.5 rounded-xl transition shadow-lg shadow-red-500/20">Keluar Ujian</button>
-      </div>
-    </div>
 
-    <div class="bg-slate-900/90 backdrop-blur-xl border-b border-white/10 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs z-10">
-      <div>
-        <p class="font-black text-white text-sm truncate" id="exam-title">Mata Pelajaran</p>
-        <p class="text-[11px] text-slate-400 font-medium mt-0.5">
-          Siswa: <span id="exam-student-name" class="text-sky-400 font-bold">-</span> &bull; No: <span id="exam-student-nomortes" class="font-bold text-slate-300">-</span>
-        </p>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <div class="flex items-center gap-1.5 bg-white/10 border border-white/10 px-3 py-1.5 rounded-2xl">
-          <span class="text-[10px] text-slate-400 font-bold uppercase">Pelanggaran:</span>
-          <span id="violation-badge" class="bg-white/20 text-slate-200 text-xs font-black px-2 py-0.5 rounded-lg"><span id="violation-count">0</span>/3</span>
-        </div>
-
-        <div class="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-2xl text-amber-300">
-          <div>
-            <span class="text-[10px] text-amber-400 font-bold uppercase block leading-none">Sisa Waktu</span>
-            <span id="exam-timer" class="font-mono text-xs font-black text-amber-300 leading-tight">--:--:--</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="flex-1 w-full bg-slate-950 relative p-2 sm:p-4">
+    <div class="flex-1 w-full bg-slate-950 relative p-2 sm:p-3">
       <iframe id="iframe-form" class="w-full h-full border-none rounded-2xl bg-white shadow-2xl" src="about:blank"></iframe>
 
       <!-- OVERLAY HUKUMAN PELANGGARAN -->
-      <div id="penalty-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center p-6 hidden">
-        <div class="max-w-md w-full glass-card p-8 rounded-[24px] shadow-2xl border border-white/30">
-          <h3 class="text-lg font-black text-slate-900 mb-1">Akses Ujian Terkunci</h3>
-          <p class="text-xs text-slate-500 mb-3" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
-          <span class="inline-block bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-extrabold px-3 py-1 rounded-full mb-4">
-            Pelanggaran ke-<span id="overlay-violation-count">1</span>
-          </span>
+      <div id="penalty-overlay" class="violation-vignette absolute inset-0 bg-gradient-to-br from-red-950/85 via-slate-950/90 to-red-950/85 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center p-6 hidden">
+        <div class="max-w-md w-full glass-card rounded-[24px] shadow-2xl border border-red-200/60 overflow-hidden" style="box-shadow: 0 25px 60px -12px rgba(239,68,68,0.35);">
+          <div class="h-1.5 w-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
+          <div class="p-8">
+            <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🚫</div>
+            <h3 class="text-lg font-black text-red-700 mb-1 tracking-tight">Akses Ujian Terkunci</h3>
+            <p class="text-xs text-slate-500 mb-3" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
+            <span class="inline-block bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-extrabold px-3 py-1 rounded-full mb-4">
+              Pelanggaran ke-<span id="overlay-violation-count">1</span>
+            </span>
 
-          <div class="bg-white/50 border border-white/70 p-4 rounded-2xl mb-3 text-left backdrop-blur-md">
-            <input type="password" id="input-token-pengawas" placeholder="Masukkan Token Pengawas"
-              class="w-full text-center text-base font-extrabold glass-input rounded-2xl py-3.5 px-3 text-slate-900 outline-none mb-3 tracking-widest placeholder:text-slate-400 placeholder:font-normal">
-            <button onclick="verifikasiToken()" class="ios-btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl text-xs transition shadow-lg shadow-blue-500/25">
-              Buka Kunci Layar
-            </button>
-            <p id="token-error-msg" class="text-xs text-red-600 mt-2.5 hidden font-extrabold text-center">Token salah! Hubungi pengawas.</p>
+            <div class="bg-white/60 border border-red-200/50 p-4 rounded-2xl mb-1 text-left backdrop-blur-md">
+              <input type="password" id="input-token-pengawas" placeholder="Masukkan Token Pengawas"
+                class="w-full text-center text-base font-extrabold glass-input rounded-2xl py-3.5 px-3 text-slate-900 outline-none mb-3 tracking-widest placeholder:text-slate-400 placeholder:font-normal">
+              <button onclick="verifikasiToken()" class="ios-btn-active w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl text-xs transition shadow-lg shadow-red-500/25">
+                Buka Kunci Layar
+              </button>
+              <p id="token-error-msg" class="text-xs text-red-600 mt-2.5 hidden font-extrabold text-center">Token salah! Hubungi pengawas.</p>
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- BAR INFORMASI MINIMALIS (DI BAWAH, agar bagian atas web viewer lebih leluasa) -->
+    <div class="glass-dark border-t border-white/10 z-20">
+      <div class="px-3 pt-2 flex items-center justify-between gap-2 text-xs">
+        <span id="exam-title" class="font-black text-white text-xs sm:text-sm truncate max-w-[140px] sm:max-w-[260px]">Mata Pelajaran</span>
+
+        <div class="flex items-center gap-1.5 shrink-0">
+          <span id="realtime-clock" class="hidden md:inline text-slate-500 font-semibold tracking-wide">-- WIB</span>
+
+          <div class="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-xl text-amber-300" title="Sisa Waktu">
+            <span class="text-[10px]">⏱</span>
+            <span id="exam-timer" class="font-mono font-black leading-none">--:--:--</span>
+          </div>
+
+          <div class="flex items-center gap-1 bg-white/10 border border-white/10 px-2 py-1 rounded-xl" title="Jumlah Pelanggaran">
+            <span class="text-[10px]">⚠️</span>
+            <span id="violation-badge" class="text-slate-200 font-black"><span id="violation-count">0</span>/3</span>
+          </div>
+
+          <button onclick="refreshForm()" title="Refresh Form" class="ios-btn-active bg-white/10 hover:bg-white/20 text-white border border-white/15 w-8 h-8 rounded-xl transition backdrop-blur-md flex items-center justify-center">↻</button>
+          <button onclick="konfirmasiSelesai()" title="Keluar Ujian" class="ios-btn-active bg-red-600/90 hover:bg-red-600 text-white border border-red-500/30 font-bold w-8 h-8 rounded-xl transition shadow-lg shadow-red-500/20 flex items-center justify-center">✕</button>
+        </div>
+      </div>
+
+      <!-- Identitas siswa, selalu tampil -->
+      <div class="px-3 pb-2 pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+        <span class="text-slate-600">👤</span>
+        <span id="exam-student-name" class="text-sky-400 font-bold truncate max-w-[55%]">-</span>
+        <span class="text-slate-600">•</span>
+        <span class="text-slate-500">No. Tes:</span>
+        <span id="exam-student-nomortes" class="font-bold text-slate-300">-</span>
       </div>
     </div>
   </div>
@@ -866,7 +891,7 @@
           // Jika tab benar-benar tersembunyi (pindah app/tab), visibilitychange akan menangani.
           // Di sini hanya proses jika dokumen masih dianggap blur & tidak hidden (kasus pindah window lain di desktop).
           if (!document.hasFocus()) {
-            handleCheatViolation();
+            handleCheatViolation("Terdeteksi keluar dari aplikasi / berpindah tab!");
           }
         }, BLUR_GRACE_MS);
       });
@@ -881,12 +906,23 @@
       document.addEventListener("visibilitychange", () => {
         if (document.hidden) {
           if (blurTimeout) { clearTimeout(blurTimeout); blurTimeout = null; }
-          handleCheatViolation();
+          handleCheatViolation("Terdeteksi keluar dari aplikasi / berpindah tab!");
         }
       });
+
+      // DETEKSI KELUAR DARI MODE FULLSCREEN
+      const onFullscreenChange = () => {
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+        if (!isFs && isExamActive && !isLocked) {
+          handleCheatViolation("Terdeteksi keluar dari mode fullscreen!");
+        }
+      };
+      document.addEventListener("fullscreenchange", onFullscreenChange);
+      document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+      document.addEventListener("msfullscreenchange", onFullscreenChange);
     }
 
-    async function handleCheatViolation() {
+    async function handleCheatViolation(reason) {
       if (!isExamActive || isLocked) return;
 
       isLocked = true;
@@ -914,7 +950,7 @@
         return;
       }
 
-      document.getElementById("penalty-reason").innerText = "Terdeteksi keluar dari aplikasi / berpindah tab!";
+      document.getElementById("penalty-reason").innerText = reason || "Terdeteksi melakukan pelanggaran!";
       document.getElementById("token-error-msg").classList.add("hidden");
       document.getElementById("input-token-pengawas").value = "";
       document.getElementById("penalty-overlay").classList.remove("hidden");
