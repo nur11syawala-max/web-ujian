@@ -265,15 +265,18 @@
     </div>
   </div>
 
-  <!-- TOAST PESAN PROKTOR (realtime, tampil di halaman manapun: dashboard maupun ruang ujian) -->
-  <div id="toast-pesan-proktor" class="fixed top-3 inset-x-0 z-[350] flex justify-center px-3 pointer-events-none hidden">
-    <div id="toast-pesan-inner" class="pointer-events-auto w-full max-w-md bg-gradient-to-br from-[#142953] to-[#0B1330] text-white rounded-2xl shadow-2xl border border-white/10 px-4 py-3 flex items-start gap-3 backdrop-blur-xl opacity-0 -translate-y-3 transition-all duration-300 ease-out">
-      <span class="text-lg leading-none">📢</span>
-      <div class="flex-1 min-w-0">
-        <p class="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 mb-0.5">Pesan Pengawas</p>
-        <p id="toast-pesan-text" class="text-xs font-medium leading-relaxed text-slate-100 break-words"></p>
+  <!-- MODAL PESAN PROKTOR (realtime, tampil di tengah, di halaman manapun: dashboard maupun ruang ujian) -->
+  <div id="modal-pesan-proktor"
+    class="ios-backdrop fixed inset-0 bg-slate-950/60 backdrop-blur-2xl z-[340] flex items-center justify-center p-5 hidden opacity-0 pointer-events-none">
+    <div class="ios-modal-card w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl transform scale-90 opacity-0 bg-gradient-to-br from-[#1B3A8C] via-[#142953] to-[#0B1330] border border-white/10">
+      <div class="p-7 text-center">
+        <div class="w-16 h-16 bg-amber-400/15 text-amber-300 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-amber-300/20">📢</div>
+        <p class="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 mb-2">Pesan Pengawas</p>
+        <p id="toast-pesan-text" class="text-sm font-medium leading-relaxed text-slate-100 mb-6"></p>
+        <button onclick="tutupToastPesan()" class="ios-btn-active w-full bg-white hover:bg-slate-100 text-[#142953] font-extrabold py-3.5 rounded-2xl text-xs transition shadow-lg">
+          ✅ Paham / Mengerti
+        </button>
       </div>
-      <button onclick="tutupToastPesan()" class="text-slate-400 hover:text-white text-sm font-bold leading-none shrink-0">✕</button>
     </div>
   </div>
 
@@ -367,7 +370,6 @@
     let unsubscribeJadwalListener = null;
     let unsubscribePesanListener = null;
     let lastPesanBroadcastId = null;
-    let toastPesanTimeout = null;
 
     let pendingExam = null;
     let alertCallback = null;
@@ -890,29 +892,14 @@
     }
 
     function tampilkanToastPesan(teks) {
-      const toast = document.getElementById("toast-pesan-proktor");
-      const inner = document.getElementById("toast-pesan-inner");
       document.getElementById("toast-pesan-text").innerText = teks;
-
-      toast.classList.remove("hidden");
-      requestAnimationFrame(() => {
-        inner.classList.remove("opacity-0", "-translate-y-3");
-      });
-
-      if (toastPesanTimeout) clearTimeout(toastPesanTimeout);
-      toastPesanTimeout = setTimeout(() => tutupToastPesan(), 8000);
+      showModalAnimated("modal-pesan-proktor");
     }
 
     function tutupToastPesan() {
-      const toast = document.getElementById("toast-pesan-proktor");
-      const inner = document.getElementById("toast-pesan-inner");
-      inner.classList.add("opacity-0", "-translate-y-3");
-      setTimeout(() => toast.classList.add("hidden"), 300);
-
-      if (toastPesanTimeout) {
-        clearTimeout(toastPesanTimeout);
-        toastPesanTimeout = null;
-      }
+      // Panggil SEBELUM animasi/setTimeout agar tetap dianggap browser sebagai aksi langsung dari klik pengguna
+      mintaFullscreen();
+      hideModalAnimated("modal-pesan-proktor");
     }
 
     function persiapanMulaiUjian(id, mapel, link, tanggal, jamSelesai) {
