@@ -250,7 +250,6 @@
   <!-- OVERLAY AKUN TERKUNCI MASSAL (di luar page-dashboard & page-exam agar selalu bisa tampil di halaman manapun) -->
   <div id="dashboard-lock-overlay" class="violation-vignette fixed inset-0 bg-gradient-to-br from-red-950/80 via-slate-950/85 to-red-950/80 backdrop-blur-xl z-[300] flex flex-col items-center justify-center p-6 hidden">
     <div class="glass-card max-w-md w-full rounded-[24px] text-center shadow-2xl border border-red-200/60 overflow-hidden" style="box-shadow: 0 25px 60px -12px rgba(239,68,68,0.35);">
-      <div class="h-1.5 w-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
       <div class="p-8">
         <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
         <h3 class="text-lg font-black text-red-700 tracking-tight">Akun Terkunci Total</h3>
@@ -609,6 +608,7 @@
 
             // CEK STATUS REQUEST SAYA
             const bannerReq = document.getElementById("banner-request-status");
+            const btnReqPembekuan = document.getElementById("btn-req-pembekuan");
             if (data.request_status === "pending") {
               bannerReq.classList.remove("hidden");
               let reqName = "Permintaan Bantuan";
@@ -616,8 +616,19 @@
               if (data.request_type === "reset_online") reqName = "Reset Login Online";
               if (data.request_type === "reset_soal") reqName = `Reset Akses Soal (${data.request_mapel || ''})`;
               document.getElementById("request-status-detail").innerText = `${reqName} sedang menunggu konfirmasi proktor.`;
+
+              if (data.request_type === "buka_pembekuan" && btnReqPembekuan) {
+                btnReqPembekuan.disabled = true;
+                btnReqPembekuan.classList.add("opacity-60", "cursor-not-allowed");
+                btnReqPembekuan.innerHTML = "⏳ Menunggu Eksekusi Proktor...";
+              }
             } else {
               bannerReq.classList.add("hidden");
+              if (btnReqPembekuan) {
+                btnReqPembekuan.disabled = false;
+                btnReqPembekuan.classList.remove("opacity-60", "cursor-not-allowed");
+                btnReqPembekuan.innerHTML = "📩 Minta Buka Pembekuan ke Proktor";
+              }
             }
 
             const jumlahPelanggaran = Number(data.pelanggaran) || 0;
@@ -647,6 +658,11 @@
 
     // KIRIM REQUEST BUKA PEMBEKUAN DARI OVERLAY DASHBOARD
     async function kirimRequestBukaPembekuan() {
+      const btn = document.getElementById("btn-req-pembekuan");
+      btn.disabled = true;
+      btn.classList.add("opacity-60", "cursor-not-allowed");
+      btn.innerHTML = "⏳ Menunggu Eksekusi Proktor...";
+
       try {
         await db.collection("siswa").doc(currentUser.nomor_tes).update({
           request_type: "buka_pembekuan",
@@ -655,6 +671,9 @@
         });
         customAlert("Berhasil", "Permintaan buka pembekuan telah dikirim ke proktor.", "📩");
       } catch (e) {
+        btn.disabled = false;
+        btn.classList.remove("opacity-60", "cursor-not-allowed");
+        btn.innerHTML = "📩 Minta Buka Pembekuan ke Proktor";
         customAlert("Gagal", "Terjadi kesalahan pengiriman.", "❌");
       }
     }
