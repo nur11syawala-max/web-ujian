@@ -2,7 +2,10 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Aplikasi Ujian Online - Siswa</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -262,6 +265,18 @@
     </div>
   </div>
 
+  <!-- TOAST PESAN PROKTOR (realtime, tampil di halaman manapun: dashboard maupun ruang ujian) -->
+  <div id="toast-pesan-proktor" class="fixed top-3 inset-x-0 z-[350] flex justify-center px-3 pointer-events-none hidden">
+    <div id="toast-pesan-inner" class="pointer-events-auto w-full max-w-md bg-gradient-to-br from-[#142953] to-[#0B1330] text-white rounded-2xl shadow-2xl border border-white/10 px-4 py-3 flex items-start gap-3 backdrop-blur-xl opacity-0 -translate-y-3 transition-all duration-300 ease-out">
+      <span class="text-lg leading-none">📢</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-[10px] font-extrabold uppercase tracking-wider text-amber-400 mb-0.5">Pesan Pengawas</p>
+        <p id="toast-pesan-text" class="text-xs font-medium leading-relaxed text-slate-100 break-words"></p>
+      </div>
+      <button onclick="tutupToastPesan()" class="text-slate-400 hover:text-white text-sm font-bold leading-none shrink-0">✕</button>
+    </div>
+  </div>
+
   <!-- HALAMAN RUANG UJIAN -->
   <div id="page-exam" class="hidden fixed inset-0 bg-slate-950 z-50 flex flex-col overflow-hidden">
 
@@ -350,6 +365,9 @@
     let maxViolations = 3;
     let unsubscribeUserListener = null;
     let unsubscribeJadwalListener = null;
+    let unsubscribePesanListener = null;
+    let lastPesanBroadcastId = null;
+    let toastPesanTimeout = null;
 
     let pendingExam = null;
     let alertCallback = null;
@@ -468,12 +486,41 @@
       });
     }
 
+    function isIOSSafariTanpaFullscreenSupport() {
+      const ua = navigator.userAgent || "";
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      const dukungFullscreen = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+      return isIOS && !isStandalone && !dukungFullscreen;
+    }
+
     function mintaFullscreen() {
       const docEl = document.documentElement;
-      if (!document.fullscreenElement) {
-        if (docEl.requestFullscreen) docEl.requestFullscreen().catch(() => {});
-        else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+      if (document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement) return;
+
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => {});
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
+      } else if (isIOSSafariTanpaFullscreenSupport()) {
+        // iPhone/iPad Safari (mode tab biasa) memang tidak mendukung Fullscreen API untuk elemen non-video.
+        // Solusinya: minta siswa menambahkan halaman ini ke Layar Utama agar berjalan dalam mode standalone (tanpa address bar).
+        tampilkanHintFullscreenIOS();
       }
+    }
+
+    function tampilkanHintFullscreenIOS() {
+      if (localStorage.getItem("hint_fullscreen_ios_shown")) return;
+      localStorage.setItem("hint_fullscreen_ios_shown", "1");
+      customAlert(
+        "Tips Layar Penuh di iPhone/iPad",
+        "Safari di iPhone/iPad tidak mendukung mode layar penuh otomatis untuk halaman web. Untuk pengalaman terbaik, tambahkan halaman ini ke Layar Utama: tekan tombol Bagikan (⬆️) lalu pilih 'Tambah ke Layar Utama', kemudian buka aplikasi dari ikon tersebut.",
+        "📱"
+      );
     }
 
     function cekSesiLogin() {
@@ -585,6 +632,8 @@
     function tampilkanDashboard() {
       document.getElementById("page-login").classList.add("hidden");
       document.getElementById("page-dashboard").classList.remove("hidden");
+
+      initRealtimePesanSiswa();
 
       document.getElementById("user-display-name").innerText = currentUser.nama || "-";
       document.getElementById("user-display-nomortes").innerText = currentUser.nomor_tes;
@@ -816,6 +865,53 @@
 
       if (container.children.length === 0) {
         container.innerHTML = "<p class='glass-card p-6 rounded-2xl text-slate-400 text-center text-xs font-semibold'>Tidak ada jadwal ujian untuk kelas kamu.</p>";
+      }
+    }
+
+    // --- PESAN / HIMBAUAN PROKTOR (REALTIME, TAMPIL DI HALAMAN MANAPUN) ---
+    function initRealtimePesanSiswa() {
+      if (unsubscribePesanListener) return; // sudah aktif, jangan dobel listener
+
+      unsubscribePesanListener = db.collection("pengaturan").doc("pengumuman")
+        .onSnapshot((doc) => {
+          if (!doc.exists) return;
+          const data = doc.data();
+          if (!data.pesan) return;
+
+          const idBroadcast = data.broadcast_id || null;
+          // Hindari menampilkan ulang pesan yang sama persis berkali-kali
+          if (idBroadcast !== null && idBroadcast === lastPesanBroadcastId) return;
+          lastPesanBroadcastId = idBroadcast;
+
+          tampilkanToastPesan(data.pesan);
+        }, (error) => {
+          console.error("Gagal memuat pesan proktor:", error);
+        });
+    }
+
+    function tampilkanToastPesan(teks) {
+      const toast = document.getElementById("toast-pesan-proktor");
+      const inner = document.getElementById("toast-pesan-inner");
+      document.getElementById("toast-pesan-text").innerText = teks;
+
+      toast.classList.remove("hidden");
+      requestAnimationFrame(() => {
+        inner.classList.remove("opacity-0", "-translate-y-3");
+      });
+
+      if (toastPesanTimeout) clearTimeout(toastPesanTimeout);
+      toastPesanTimeout = setTimeout(() => tutupToastPesan(), 8000);
+    }
+
+    function tutupToastPesan() {
+      const toast = document.getElementById("toast-pesan-proktor");
+      const inner = document.getElementById("toast-pesan-inner");
+      inner.classList.add("opacity-0", "-translate-y-3");
+      setTimeout(() => toast.classList.add("hidden"), 300);
+
+      if (toastPesanTimeout) {
+        clearTimeout(toastPesanTimeout);
+        toastPesanTimeout = null;
       }
     }
 
