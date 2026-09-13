@@ -6,17 +6,32 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <!-- Cegah browser/HP menyimpan cache halaman ini terlalu lama, supaya update kode
+       (misal fitur deteksi browser/OS) langsung terpakai tanpa perlu uninstall/clear cache manual -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Aplikasi Ujian Online - Siswa</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- FIREBASE SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
   <style>
+    :root{
+      --navy-deep:#050A1A;
+      --navy-900:#0B1330;
+      --navy-800:#101B42;
+      --navy-700:#142953;
+      --navy-glow:#1B3A8C;
+      --gold:#D9B45C;
+      --gold-soft:#F0CE7E;
+      --gold-dim:#B08A3E;
+      --sky:#4EA8FF;
+    }
     html, body {
       -webkit-touch-callout: none;
       overscroll-behavior-y: none;
@@ -25,29 +40,99 @@
       -moz-user-select: none;
       -ms-user-select: none;
       user-select: none;
-      font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+      font-family: 'Manrope', 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+      color: #E7ECFA;
     }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.4); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb { background: rgba(217, 180, 92, 0.35); border-radius: 99px; }
 
+    /* ===== ANIMATED ELEGANT GRADIENT BACKDROP ===== */
+    .app-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      background:
+        radial-gradient(120% 90% at 15% -10%, rgba(27,58,140,0.55) 0%, rgba(11,19,48,0) 55%),
+        radial-gradient(110% 90% at 110% 10%, rgba(78,168,255,0.16) 0%, rgba(11,19,48,0) 50%),
+        radial-gradient(140% 100% at 50% 120%, rgba(217,180,92,0.10) 0%, rgba(11,19,48,0) 55%),
+        linear-gradient(160deg, var(--navy-deep) 0%, var(--navy-900) 45%, var(--navy-800) 75%, var(--navy-deep) 100%);
+      background-size: 200% 200%, 200% 200%, 200% 200%, 260% 260%;
+      animation: bgDrift 22s ease-in-out infinite;
+    }
+    @keyframes bgDrift {
+      0%   { background-position: 0% 20%, 100% 0%, 50% 100%, 0% 0%; }
+      50%  { background-position: 30% 60%, 60% 40%, 40% 60%, 100% 100%; }
+      100% { background-position: 0% 20%, 100% 0%, 50% 100%, 0% 0%; }
+    }
+    .app-bg::before, .app-bg::after {
+      content: "";
+      position: absolute;
+      border-radius: 999px;
+      filter: blur(90px);
+      opacity: 0.55;
+      pointer-events: none;
+    }
+    .app-bg::before {
+      width: 70vmax; height: 70vmax;
+      top: -25vmax; left: -20vmax;
+      background: radial-gradient(circle, rgba(27,58,140,0.55), transparent 70%);
+      animation: floatBlob 26s ease-in-out infinite;
+    }
+    .app-bg::after {
+      width: 60vmax; height: 60vmax;
+      bottom: -22vmax; right: -18vmax;
+      background: radial-gradient(circle, rgba(217,180,92,0.16), transparent 70%);
+      animation: floatBlob 30s ease-in-out infinite reverse;
+    }
+    @keyframes floatBlob {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      50% { transform: translate(4vmax, 3vmax) scale(1.08); }
+    }
+    .grain-veil{
+      position:fixed; inset:0; z-index:1; pointer-events:none;
+      background-image: radial-gradient(rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 3px 3px;
+      opacity: .5;
+    }
+    @media (prefers-reduced-motion: reduce){
+      .app-bg, .app-bg::before, .app-bg::after { animation: none; }
+    }
+
+    /* ===== GLASS SURFACES (dark, gold-trimmed) ===== */
     .glass-card {
-      background: rgba(255, 255, 255, 0.72);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.85);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+      background: linear-gradient(155deg, rgba(22,33,68,0.75), rgba(11,19,48,0.72));
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      border: 1px solid rgba(217,180,92,0.16);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.45);
     }
     .glass-dark {
-      background: rgba(15, 23, 42, 0.8);
+      background: rgba(5, 10, 26, 0.86);
       backdrop-filter: blur(25px);
       -webkit-backdrop-filter: blur(25px);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(217,180,92,0.12);
     }
     .glass-input {
-      background: rgba(255, 255, 255, 0.55);
+      background: rgba(255, 255, 255, 0.06);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(203, 213, 225, 0.7);
+      border: 1px solid rgba(217,180,92,0.25);
+      color: #F3EFE2;
+    }
+    .glass-input::placeholder{ color: rgba(203,213,225,0.45); }
+
+    .text-gold { color: var(--gold-soft); }
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold-soft), var(--gold) 55%, var(--gold-dim));
+      color: #241a05;
+      box-shadow: 0 14px 30px -10px rgba(217,180,92,0.55);
+    }
+    .btn-gold:active { filter: brightness(0.97); }
+    .btn-navy {
+      background: linear-gradient(135deg, #1B3A8C, #142953 70%);
+      color: #F3F6FF;
+      box-shadow: 0 14px 30px -10px rgba(27,58,140,0.55);
     }
 
     .ios-modal-card {
@@ -77,34 +162,33 @@
     }
   </style>
 </head>
-<body class="bg-slate-100 min-h-screen text-slate-800 relative overflow-x-hidden selection:bg-blue-500 selection:text-white">
+<body class="min-h-screen relative overflow-x-hidden selection:bg-amber-400/40 selection:text-white" style="background:#050A1A;">
 
-  <!-- BACKGROUND GLOWS -->
-  <div class="fixed -top-32 -left-32 w-96 h-96 bg-blue-400/20 rounded-full blur-[100px] pointer-events-none"></div>
-  <div class="fixed top-1/3 -right-32 w-96 h-96 bg-indigo-400/20 rounded-full blur-[120px] pointer-events-none"></div>
-  <div class="fixed -bottom-32 left-1/3 w-96 h-96 bg-sky-300/20 rounded-full blur-[110px] pointer-events-none"></div>
+  <!-- ANIMATED BACKGROUND -->
+  <div class="app-bg"></div>
+  <div class="grain-veil"></div>
 
   <!-- MODALS -->
   <!-- ALERT GLOBAL -->
   <div id="modal-alert" onclick="handleBackdropClick(event, 'modal-alert', closeAlertModal)"
-    class="ios-backdrop fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] z-[400] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
+    class="ios-backdrop fixed inset-0 bg-[#03060F]/70 backdrop-blur-[16px] z-[400] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
     <div class="ios-modal-card glass-card rounded-[24px] max-w-sm w-full p-6 text-center transform scale-90 opacity-0 shadow-2xl">
-      <div id="modal-alert-icon" class="w-14 h-14 bg-blue-500/10 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">ℹ️</div>
-      <h3 class="text-base font-extrabold text-slate-900 tracking-tight" id="modal-alert-title">Pemberitahuan</h3>
-      <p class="text-xs text-slate-600 mt-2 mb-5 leading-relaxed" id="modal-alert-message">Pesan sistem.</p>
-      <button onclick="closeAlertModal()" class="ios-btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-2xl text-xs transition-all shadow-lg shadow-blue-500/25">Mengerti</button>
+      <div id="modal-alert-icon" class="w-14 h-14 bg-sky-400/10 text-sky-300 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner border border-sky-300/15">ℹ️</div>
+      <h3 class="text-base font-extrabold text-white tracking-tight" id="modal-alert-title">Pemberitahuan</h3>
+      <p class="text-xs text-slate-300 mt-2 mb-5 leading-relaxed" id="modal-alert-message">Pesan sistem.</p>
+      <button onclick="closeAlertModal()" class="ios-btn-active btn-gold w-full font-extrabold py-3 rounded-2xl text-xs transition-all">Mengerti</button>
     </div>
   </div>
 
   <!-- CONFIRM GLOBAL -->
   <div id="modal-custom-confirm" onclick="handleBackdropClick(event, 'modal-custom-confirm', () => closeConfirmModal(false))"
-    class="ios-backdrop fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] z-[400] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
+    class="ios-backdrop fixed inset-0 bg-[#03060F]/70 backdrop-blur-[16px] z-[400] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
     <div class="ios-modal-card glass-card rounded-[24px] max-w-sm w-full p-6 text-center transform scale-90 opacity-0 shadow-2xl">
-      <div id="modal-confirm-icon" class="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner">❓</div>
-      <h3 class="text-base font-extrabold text-slate-900 tracking-tight" id="modal-confirm-title">Konfirmasi</h3>
-      <p class="text-xs text-slate-600 mt-2 mb-5 leading-relaxed" id="modal-confirm-message">Apakah kamu yakin?</p>
+      <div id="modal-confirm-icon" class="w-14 h-14 bg-amber-400/10 text-amber-300 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl shadow-inner border border-amber-300/15">❓</div>
+      <h3 class="text-base font-extrabold text-white tracking-tight" id="modal-confirm-title">Konfirmasi</h3>
+      <p class="text-xs text-slate-300 mt-2 mb-5 leading-relaxed" id="modal-confirm-message">Apakah kamu yakin?</p>
       <div class="grid grid-cols-2 gap-2.5">
-        <button onclick="closeConfirmModal(false)" class="ios-btn-active w-full bg-white/70 hover:bg-white text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition border border-white/80 shadow-sm">Batal</button>
+        <button onclick="closeConfirmModal(false)" class="ios-btn-active w-full bg-white/5 hover:bg-white/10 text-slate-200 font-bold py-2.5 rounded-2xl text-xs transition border border-white/10 shadow-sm">Batal</button>
         <button onclick="closeConfirmModal(true)" id="btn-modal-confirm-action" class="ios-btn-active w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-2xl text-xs transition shadow-lg shadow-red-500/25">Lanjutkan</button>
       </div>
     </div>
@@ -112,79 +196,91 @@
 
   <!-- KONFIRMASI SISWA -->
   <div id="modal-konfirmasi" onclick="handleBackdropClick(event, 'modal-konfirmasi', batalKonfirmasi)"
-    class="ios-backdrop fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] z-[110] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
+    class="ios-backdrop fixed inset-0 bg-[#03060F]/70 backdrop-blur-[16px] z-[110] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
     <div class="ios-modal-card glass-card rounded-[24px] max-w-sm w-full p-6 text-center transform scale-90 opacity-0 shadow-2xl">
-      <h3 class="text-base font-extrabold text-slate-900 tracking-tight">Konfirmasi Identitas</h3>
-      <div class="bg-white/50 border border-white/70 backdrop-blur-md rounded-2xl p-4 my-3 text-left space-y-2.5 shadow-inner">
+      <h3 class="text-base font-extrabold text-white tracking-tight">Konfirmasi Identitas</h3>
+      <div class="bg-white/5 border border-gold/20 backdrop-blur-md rounded-2xl p-4 my-3 text-left space-y-2.5 shadow-inner" style="border-color: rgba(217,180,92,0.18);">
         <div>
           <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nama Peserta</p>
-          <p class="text-sm font-extrabold text-slate-800" id="confirm-nama">-</p>
+          <p class="text-sm font-extrabold text-white" id="confirm-nama">-</p>
         </div>
         <div class="flex justify-between">
           <div>
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Nomor Tes</p>
-            <p class="text-xs font-bold text-blue-600" id="confirm-nomortes">-</p>
+            <p class="text-xs font-bold text-gold" id="confirm-nomortes">-</p>
           </div>
           <div class="text-right">
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Kelas</p>
-            <p class="text-xs font-bold text-slate-800" id="confirm-kelas">-</p>
+            <p class="text-xs font-bold text-white" id="confirm-kelas">-</p>
           </div>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-2.5">
-        <button onclick="batalKonfirmasi()" class="ios-btn-active w-full bg-white/70 hover:bg-white text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition border border-white/80 shadow-sm">Batal</button>
-        <button onclick="eksekusiLogin()" id="btn-confirm-login" class="ios-btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-2xl text-xs transition shadow-lg shadow-blue-500/25">Ya, Benar</button>
+        <button onclick="batalKonfirmasi()" class="ios-btn-active w-full bg-white/5 hover:bg-white/10 text-slate-200 font-bold py-2.5 rounded-2xl text-xs transition border border-white/10 shadow-sm">Batal</button>
+        <button onclick="eksekusiLogin()" id="btn-confirm-login" class="ios-btn-active btn-gold w-full font-extrabold py-2.5 rounded-2xl text-xs transition">Ya, Benar</button>
       </div>
     </div>
   </div>
 
   <!-- START EXAM -->
   <div id="modal-start-exam" onclick="handleBackdropClick(event, 'modal-start-exam', batalMulaiUjian)"
-    class="ios-backdrop fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] z-[110] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
+    class="ios-backdrop fixed inset-0 bg-[#03060F]/70 backdrop-blur-[16px] z-[110] flex items-center justify-center p-4 hidden opacity-0 pointer-events-none">
     <div class="ios-modal-card glass-card rounded-[24px] max-w-sm w-full p-6 text-center transform scale-90 opacity-0 shadow-2xl">
-      <h3 class="text-base font-extrabold text-slate-900">Persiapan Ujian</h3>
-      <p class="text-xs text-blue-600 font-bold mt-0.5 mb-3" id="start-mapel-text">Mata Pelajaran</p>
-      <div class="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 mb-4 text-center backdrop-blur-sm">
-        <p class="text-xs text-amber-900 font-medium italic leading-relaxed" id="start-quote-text"></p>
+      <h3 class="text-base font-extrabold text-white">Persiapan Ujian</h3>
+      <p class="text-xs text-gold font-bold mt-0.5 mb-3" id="start-mapel-text">Mata Pelajaran</p>
+      <div class="bg-amber-400/[0.07] border border-amber-300/20 rounded-2xl p-4 mb-4 text-center backdrop-blur-sm">
+        <p class="text-xs text-amber-100/90 font-medium italic leading-relaxed" id="start-quote-text"></p>
       </div>
       <div class="grid grid-cols-2 gap-2.5">
-        <button onclick="batalMulaiUjian()" class="ios-btn-active w-full bg-white/70 hover:bg-white text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition border border-white/80 shadow-sm">Batal</button>
-        <button onclick="eksekusiMulaiUjian()" class="ios-btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-2xl text-xs transition shadow-lg shadow-blue-500/25">Saya Siap, Mulai</button>
+        <button onclick="batalMulaiUjian()" class="ios-btn-active w-full bg-white/5 hover:bg-white/10 text-slate-200 font-bold py-2.5 rounded-2xl text-xs transition border border-white/10 shadow-sm">Batal</button>
+        <button onclick="eksekusiMulaiUjian()" class="ios-btn-active btn-gold w-full font-extrabold py-2.5 rounded-2xl text-xs transition">Saya Siap, Mulai</button>
       </div>
     </div>
   </div>
 
   <!-- HALAMAN LOGIN -->
   <div id="page-login" class="min-h-screen flex items-center justify-center p-4 sm:p-6 relative z-10">
-    <div class="w-full max-w-4xl glass-card rounded-[24px] overflow-hidden grid md:grid-cols-2 shadow-2xl transition-all">
-      <div class="hidden md:flex relative flex-col justify-between p-10 text-white bg-gradient-to-br from-blue-700 via-indigo-600 to-sky-500 overflow-hidden">
-        <div class="absolute inset-0 bg-white/10 backdrop-blur-[2px]"></div>
-        <div class="relative z-10">
-          <div class="w-16 h-16 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center mb-6 backdrop-blur-md shadow-lg">🔒</div>
-          <h1 class="text-2xl font-black tracking-tight">Exam Web SMAMUMA</h1>
-          <p class="text-blue-100 text-xs mt-1 font-medium">Sistem Ujian Online Terintegrasi.</p>
+    <div class="w-full max-w-4xl glass-card rounded-[28px] overflow-hidden grid md:grid-cols-2 shadow-2xl transition-all">
+
+      <!-- HERO SISI KIRI (tampil penuh di mobile juga sebagai bagian atas kartu) -->
+      <div class="relative flex flex-col items-center justify-center text-center px-8 py-12 sm:py-14 overflow-hidden">
+        <div class="absolute inset-0" style="background: radial-gradient(120% 100% at 50% 0%, rgba(217,180,92,0.10), transparent 60%);"></div>
+        <div class="relative z-10 flex flex-col items-center">
+          <div class="w-20 h-20 rounded-full flex items-center justify-center mb-6 shadow-lg" style="background: radial-gradient(circle at 35% 30%, rgba(217,180,92,0.35), rgba(11,19,48,0.4)); border: 1.5px solid rgba(217,180,92,0.55);">
+            <span class="text-4xl">🎓</span>
+          </div>
+          <h1 class="text-[26px] leading-tight font-extrabold tracking-tight text-white">
+            Selamat <span class="text-gold">Datang</span>
+          </h1>
+          <p class="text-sm text-slate-300 mt-1 font-medium">Sistem Ujian Online SMAMUMA</p>
+          <p class="text-xs text-slate-400 mt-4 max-w-[240px] leading-relaxed">
+            Masuk untuk melanjutkan ke halaman ujian.
+          </p>
+          <div class="hidden md:block mt-10 pt-6 border-t border-white/10 w-full">
+            <p class="text-[11px] tracking-[0.2em] text-slate-500 font-semibold uppercase">Menata Hati Meraih Prestasi</p>
+          </div>
         </div>
       </div>
 
-      <div class="p-8 sm:p-10 flex flex-col justify-center relative z-10">
+      <div class="p-7 sm:p-10 flex flex-col justify-center relative z-10 border-t md:border-t-0 md:border-l border-white/10">
         <div class="mb-6">
-          <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Masuk Ujian</h2>
-          <p class="text-xs text-slate-500 mt-1">Masukkan Nomor Tes yang tertera pada kartu ujian kamu.</p>
+          <h2 class="text-lg font-extrabold text-white tracking-tight">Masuk Ujian</h2>
+          <p class="text-xs text-slate-400 mt-1">Masukkan Nomor Tes yang tertera pada kartu ujian kamu.</p>
         </div>
 
         <form id="form-login" onsubmit="cekNomorTes(event)" class="space-y-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nomor Tes Peserta</label>
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5">Nomor Tes Peserta</label>
             <input type="text" id="login-nomortes" required placeholder="Contoh: X-1-002"
-              class="w-full px-4 py-3.5 rounded-2xl glass-input outline-none text-sm font-semibold uppercase tracking-wider text-slate-800 placeholder:text-slate-400">
+              class="w-full px-4 py-3.5 rounded-2xl glass-input outline-none text-sm font-semibold uppercase tracking-wider placeholder:normal-case">
           </div>
-          <div id="login-error" class="text-xs text-red-600 bg-red-500/10 border border-red-500/20 rounded-2xl p-3 font-semibold text-center hidden space-y-2">
+          <div id="login-error" class="text-xs text-red-300 bg-red-500/10 border border-red-500/25 rounded-2xl p-3 font-semibold text-center hidden space-y-2">
             <p id="login-error-text">Nomor Tes ini sedang aktif di perangkat lain!</p>
             <button type="button" onclick="kirimRequestResetOnline()" id="btn-request-login" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl text-xs transition shadow-md">
               📩 Minta Reset Online ke Proktor
             </button>
           </div>
-          <button type="submit" id="btn-login" class="ios-btn-active w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl transition-all shadow-lg shadow-blue-500/30 text-xs tracking-wide">
+          <button type="submit" id="btn-login" class="ios-btn-active btn-gold w-full font-extrabold py-3.5 rounded-2xl transition-all text-xs tracking-wide">
             Verifikasi Nomor Tes
           </button>
         </form>
@@ -193,17 +289,20 @@
   </div>
 
   <!-- HALAMAN DASHBOARD -->
-  <div id="page-dashboard" class="hidden min-h-screen p-4 sm:p-6 max-w-3xl mx-auto relative z-10 space-y-4">
-    <div class="glass-card rounded-[22px] px-6 py-4 flex justify-between items-center shadow-sm">
-      <div>
-        <p class="text-sm font-extrabold text-slate-900 tracking-tight" id="user-display-name">Nama Siswa</p>
-        <p class="text-[11px] text-slate-500 font-medium"><span id="user-display-nomortes">-</span> &bull; Kelas <span id="user-display-class">-</span></p>
+  <div id="page-dashboard" class="hidden min-h-screen p-4 sm:p-6 max-w-3xl mx-auto relative z-10 space-y-4 pb-10">
+    <div class="glass-card rounded-[22px] px-5 py-4 flex justify-between items-center shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg shrink-0" style="background: radial-gradient(circle at 35% 30%, rgba(217,180,92,0.30), rgba(11,19,48,0.4)); border: 1px solid rgba(217,180,92,0.35);">🎓</div>
+        <div class="min-w-0">
+          <p class="text-sm font-extrabold text-white tracking-tight truncate" id="user-display-name">Nama Siswa</p>
+          <p class="text-[11px] text-slate-400 font-medium"><span id="user-display-nomortes">-</span> &bull; Kelas <span id="user-display-class">-</span></p>
+        </div>
       </div>
-      <button onclick="prosesLogout()" title="Keluar" class="ios-btn-active w-10 h-10 flex items-center justify-center rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-600 transition">🚪</button>
+      <button onclick="prosesLogout()" title="Keluar" class="ios-btn-active w-10 h-10 flex items-center justify-center rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition shrink-0">🚪</button>
     </div>
 
     <!-- BANNER NOTIFIKASI REQUEST STATUS -->
-    <div id="banner-request-status" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between text-xs text-amber-900 backdrop-blur-md">
+    <div id="banner-request-status" class="hidden bg-amber-400/10 border border-amber-300/25 rounded-2xl p-4 flex items-center justify-between text-xs text-amber-100 backdrop-blur-md">
       <div class="flex items-center gap-2">
         <span class="animate-bounce text-base">⏳</span>
         <div>
@@ -213,36 +312,40 @@
       </div>
     </div>
 
-    <div class="rounded-[24px] p-6 bg-gradient-to-br from-blue-700 via-indigo-600 to-sky-500 text-white shadow-xl shadow-blue-500/15 relative overflow-hidden">
-      <div class="relative z-10">
-        <h2 class="text-lg font-black tracking-tight">Assalaamu'alaikum</h2>
-        <p class="text-sm font-bold mt-1" id="banner-user-name">Nama Siswa</p>
-        <p class="text-[11px] text-blue-100 font-medium opacity-90">No. Tes: <span id="banner-user-nomortes">-</span> &bull; Kelas: <span id="banner-user-class">-</span></p>
+    <div class="rounded-[24px] p-6 text-white shadow-xl relative overflow-hidden" style="background: linear-gradient(135deg, #1B3A8C 0%, #142953 55%, #0B1330 100%); box-shadow: 0 20px 45px -18px rgba(27,58,140,0.6);">
+      <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-30 blur-2xl" style="background: radial-gradient(circle, rgba(217,180,92,0.5), transparent 70%);"></div>
+      <div class="relative z-10 flex items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-black tracking-tight">Assalaamu'alaikum</h2>
+          <p class="text-sm font-bold mt-1" id="banner-user-name">Nama Siswa</p>
+          <p class="text-[11px] text-blue-100/80 font-medium opacity-90">No. Tes: <span id="banner-user-nomortes">-</span> &bull; Kelas: <span id="banner-user-class">-</span></p>
+        </div>
+        <div class="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0" style="background: rgba(217,180,92,0.18); border: 1px solid rgba(217,180,92,0.35);">📖</div>
       </div>
     </div>
 
     <div class="grid grid-cols-3 gap-3">
       <div class="glass-card rounded-2xl p-4">
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tersedia</p>
-        <p class="text-2xl font-black text-slate-800 mt-1" id="stat-tersedia">0</p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tersedia</p>
+        <p class="text-2xl font-black text-white mt-1" id="stat-tersedia">0</p>
       </div>
       <div class="glass-card rounded-2xl p-4">
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Berlangsung</p>
-        <p class="text-2xl font-black text-blue-600 mt-1" id="stat-berlangsung">0</p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Berlangsung</p>
+        <p class="text-2xl font-black text-gold mt-1" id="stat-berlangsung">0</p>
       </div>
       <div class="glass-card rounded-2xl p-4">
-        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Selesai</p>
-        <p class="text-2xl font-black text-emerald-600 mt-1" id="stat-selesai">0</p>
+        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Selesai</p>
+        <p class="text-2xl font-black text-emerald-400 mt-1" id="stat-selesai">0</p>
       </div>
     </div>
 
     <div class="pt-2">
       <div class="flex items-center justify-between mb-3 px-1">
-        <h3 class="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+        <h3 class="text-base font-extrabold text-white tracking-tight flex items-center gap-2">
           <span>📅</span> Jadwal Ujian
         </h3>
         <button onclick="refreshJadwalManual()" id="btn-refresh-jadwal"
-          class="ios-btn-active flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white border border-white/80 backdrop-blur-md shadow-sm text-xs font-extrabold text-blue-600 transition-all">
+          class="ios-btn-active flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 backdrop-blur-md shadow-sm text-xs font-extrabold text-gold transition-all">
           <span>Refresh</span>
         </button>
       </div>
@@ -251,29 +354,30 @@
   </div>
 
   <!-- OVERLAY AKUN TERKUNCI MASSAL (di luar page-dashboard & page-exam agar selalu bisa tampil di halaman manapun) -->
-  <div id="dashboard-lock-overlay" class="violation-vignette fixed inset-0 bg-gradient-to-br from-red-950/80 via-slate-950/85 to-red-950/80 backdrop-blur-xl z-[300] flex flex-col items-center justify-center p-6 hidden">
-    <div class="glass-card max-w-md w-full rounded-[24px] text-center shadow-2xl border border-red-200/60 overflow-hidden" style="box-shadow: 0 25px 60px -12px rgba(239,68,68,0.35);">
+  <div id="dashboard-lock-overlay" class="violation-vignette fixed inset-0 bg-gradient-to-br from-red-950/85 via-[#0B0710]/90 to-red-950/85 backdrop-blur-xl z-[300] flex flex-col items-center justify-center p-6 hidden">
+    <div class="glass-card max-w-md w-full rounded-[24px] text-center shadow-2xl overflow-hidden" style="border-color: rgba(239,68,68,0.35); box-shadow: 0 25px 60px -12px rgba(239,68,68,0.4);">
+      <div class="h-1.5 w-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
       <div class="p-8">
-        <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
-        <h3 class="text-lg font-black text-red-700 tracking-tight">Akun Terkunci Total</h3>
-        <p class="text-xs text-slate-500 my-3 leading-relaxed">Tercatat <b class="text-red-600 font-bold" id="lock-count-display">3</b> kali pelanggaran sistem. Hubungi Proktor untuk membuka pembekuan.</p>
+        <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-3xl">🔒</div>
+        <h3 class="text-lg font-black text-red-400 tracking-tight">Akun <span class="text-red-500">Terkunci Total</span></h3>
+        <p class="text-xs text-slate-300 my-3 leading-relaxed">Tercatat <b class="text-red-400 font-bold" id="lock-count-display">3</b> kali pelanggaran sistem. Hubungi Proktor untuk membuka pembekuan.</p>
         <button onclick="kirimRequestBukaPembekuan()" id="btn-req-pembekuan" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl text-xs transition shadow-lg shadow-red-500/25 mb-3">
           📩 Minta Buka Pembekuan ke Proktor
         </button>
-        <button onclick="prosesLogout()" class="text-xs font-bold text-slate-500 hover:underline">Keluar Akun</button>
+        <button onclick="prosesLogout()" class="text-xs font-bold text-slate-400 hover:underline">Keluar Akun</button>
       </div>
     </div>
   </div>
 
   <!-- MODAL PESAN PROKTOR (realtime, tampil di tengah, di halaman manapun: dashboard maupun ruang ujian) -->
   <div id="modal-pesan-proktor"
-    class="ios-backdrop fixed inset-0 bg-slate-950/60 backdrop-blur-2xl z-[340] flex items-center justify-center p-5 hidden opacity-0 pointer-events-none">
-    <div class="ios-modal-card w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl transform scale-90 opacity-0 bg-gradient-to-br from-[#1B3A8C] via-[#142953] to-[#0B1330] border border-white/10">
+    class="ios-backdrop fixed inset-0 bg-[#03060F]/75 backdrop-blur-2xl z-[340] flex items-center justify-center p-5 hidden opacity-0 pointer-events-none">
+    <div class="ios-modal-card w-full max-w-sm rounded-[28px] overflow-hidden shadow-2xl transform scale-90 opacity-0 bg-gradient-to-br from-[#1B3A8C] via-[#142953] to-[#0B1330] border border-amber-300/15">
       <div class="p-7 text-center">
         <div class="w-16 h-16 bg-amber-400/15 text-amber-300 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner border border-amber-300/20">📢</div>
         <p class="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 mb-2">Pesan Pengawas</p>
         <p id="toast-pesan-text" class="text-sm font-medium leading-relaxed text-slate-100 mb-6"></p>
-        <button onclick="tutupToastPesan()" class="ios-btn-active w-full bg-white hover:bg-slate-100 text-[#142953] font-extrabold py-3.5 rounded-2xl text-xs transition shadow-lg">
+        <button onclick="tutupToastPesan()" class="ios-btn-active btn-gold w-full font-extrabold py-3.5 rounded-2xl text-xs transition">
           ✅ Paham / Mengerti
         </button>
       </div>
@@ -281,30 +385,30 @@
   </div>
 
   <!-- HALAMAN RUANG UJIAN -->
-  <div id="page-exam" class="hidden fixed inset-0 bg-slate-950 z-50 flex flex-col overflow-hidden">
+  <div id="page-exam" class="hidden fixed inset-0 bg-[#050A1A] z-50 flex flex-col overflow-hidden">
 
-    <div class="flex-1 w-full bg-slate-950 relative p-2 sm:p-3">
+    <div class="flex-1 w-full bg-[#050A1A] relative p-2 sm:p-3">
       <iframe id="iframe-form" class="w-full h-full border-none rounded-2xl bg-white shadow-2xl" src="about:blank"></iframe>
 
       <!-- OVERLAY HUKUMAN PELANGGARAN -->
-      <div id="penalty-overlay" class="violation-vignette absolute inset-0 bg-gradient-to-br from-red-950/85 via-slate-950/90 to-red-950/85 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center p-6 hidden">
-        <div class="max-w-md w-full glass-card rounded-[24px] shadow-2xl border border-red-200/60 overflow-hidden" style="box-shadow: 0 25px 60px -12px rgba(239,68,68,0.35);">
+      <div id="penalty-overlay" class="violation-vignette absolute inset-0 bg-gradient-to-br from-red-950/90 via-[#0B0710]/95 to-red-950/90 backdrop-blur-xl z-50 flex flex-col items-center justify-center text-center p-6 hidden">
+        <div class="max-w-md w-full glass-card rounded-[24px] shadow-2xl overflow-hidden" style="border-color: rgba(239,68,68,0.35); box-shadow: 0 25px 60px -12px rgba(239,68,68,0.4);">
           <div class="h-1.5 w-full bg-gradient-to-r from-red-500 via-rose-500 to-red-600"></div>
           <div class="p-8">
-            <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">🚫</div>
-            <h3 class="text-lg font-black text-red-700 mb-1 tracking-tight">Akses Ujian Terkunci</h3>
-            <p class="text-xs text-slate-500 mb-3" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
-            <span class="inline-block bg-red-500/10 border border-red-500/20 text-red-600 text-[11px] font-extrabold px-3 py-1 rounded-full mb-4">
+            <div class="violation-ring w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-center justify-center mx-auto mb-4 text-3xl">🚫</div>
+            <h3 class="text-lg font-black text-red-400 mb-1 tracking-tight">Akses Ujian <span class="text-red-500">Terkunci</span></h3>
+            <p class="text-xs text-slate-300 mb-3" id="penalty-reason">Terdeteksi melakukan pelanggaran</p>
+            <span class="inline-block bg-red-500/10 border border-red-500/30 text-red-300 text-[11px] font-extrabold px-3 py-1 rounded-full mb-4">
               Pelanggaran ke-<span id="overlay-violation-count">1</span>
             </span>
 
-            <div class="bg-white/60 border border-red-200/50 p-4 rounded-2xl mb-1 text-left backdrop-blur-md">
+            <div class="bg-white/5 border border-red-400/20 p-4 rounded-2xl mb-1 text-left backdrop-blur-md">
               <input type="password" id="input-token-pengawas" placeholder="Masukkan Token Pengawas"
-                class="w-full text-center text-base font-extrabold glass-input rounded-2xl py-3.5 px-3 text-slate-900 outline-none mb-3 tracking-widest placeholder:text-slate-400 placeholder:font-normal">
+                class="w-full text-center text-base font-extrabold glass-input rounded-2xl py-3.5 px-3 outline-none mb-3 tracking-widest placeholder:font-normal">
               <button onclick="verifikasiToken()" class="ios-btn-active w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-2xl text-xs transition shadow-lg shadow-red-500/25">
                 Buka Kunci Layar
               </button>
-              <p id="token-error-msg" class="text-xs text-red-600 mt-2.5 hidden font-extrabold text-center">Token salah! Hubungi pengawas.</p>
+              <p id="token-error-msg" class="text-xs text-red-400 mt-2.5 hidden font-extrabold text-center">Token salah! Hubungi pengawas.</p>
             </div>
           </div>
         </div>
@@ -319,17 +423,17 @@
         <div class="flex items-center gap-1.5 shrink-0">
           <span id="realtime-clock" class="hidden md:inline text-slate-500 font-semibold tracking-wide">-- WIB</span>
 
-          <div class="flex items-center gap-1 bg-amber-500/10 border border-amber-500/30 px-2 py-1 rounded-xl text-amber-300" title="Sisa Waktu">
+          <div class="flex items-center gap-1 bg-amber-400/10 border border-amber-300/25 px-2 py-1 rounded-xl text-gold" title="Sisa Waktu">
             <span class="text-[10px]">⏱</span>
             <span id="exam-timer" class="font-mono font-black leading-none">--:--:--</span>
           </div>
 
-          <div class="flex items-center gap-1 bg-white/10 border border-white/10 px-2 py-1 rounded-xl" title="Jumlah Pelanggaran">
+          <div class="flex items-center gap-1 bg-white/5 border border-white/10 px-2 py-1 rounded-xl" title="Jumlah Pelanggaran">
             <span class="text-[10px]">⚠️</span>
             <span id="violation-badge" class="text-slate-200 font-black"><span id="violation-count">0</span>/3</span>
           </div>
 
-          <button onclick="refreshForm()" title="Refresh Form" class="ios-btn-active bg-white/10 hover:bg-white/20 text-white border border-white/15 w-8 h-8 rounded-xl transition backdrop-blur-md flex items-center justify-center">↻</button>
+          <button onclick="refreshForm()" title="Refresh Form" class="ios-btn-active bg-white/5 hover:bg-white/10 text-white border border-white/10 w-8 h-8 rounded-xl transition backdrop-blur-md flex items-center justify-center">↻</button>
           <button onclick="konfirmasiSelesai()" title="Keluar Ujian" class="ios-btn-active bg-red-600/90 hover:bg-red-600 text-white border border-red-500/30 font-bold w-8 h-8 rounded-xl transition shadow-lg shadow-red-500/20 flex items-center justify-center">✕</button>
         </div>
       </div>
@@ -337,7 +441,7 @@
       <!-- Identitas siswa, selalu tampil -->
       <div class="px-3 pb-2 pt-1 flex items-center gap-1.5 text-[11px] text-slate-400 font-medium">
         <span class="text-slate-600">👤</span>
-        <span id="exam-student-name" class="text-sky-400 font-bold truncate max-w-[55%]">-</span>
+        <span id="exam-student-name" class="text-gold font-bold truncate max-w-[55%]">-</span>
         <span class="text-slate-600">•</span>
         <span class="text-slate-500">No. Tes:</span>
         <span id="exam-student-nomortes" class="font-bold text-slate-300">-</span>
@@ -437,6 +541,61 @@
       }
       updateClock();
       setInterval(updateClock, 1000);
+    }
+
+    // ================== DETEKSI BROWSER & OS/MEREK HP ==================
+    // Dipakai untuk membantu proktor menilai potensi kecurangan (misal ujian
+    // seharusnya di HP tapi diakses lewat browser desktop / emulator).
+    // Catatan: user-agent bisa dipalsukan, jadi ini bersifat indikasi saja.
+    async function getDeviceInfo() {
+      const ua = navigator.userAgent || "";
+
+      // ---- JENIS BROWSER ----
+      let browser = "Browser Tidak Dikenal";
+      if (/EdgA|EdgiOS|Edg\//.test(ua)) browser = "Microsoft Edge";
+      else if (/OPR\/|OPiOS\//.test(ua)) browser = "Opera";
+      else if (/SamsungBrowser/.test(ua)) browser = "Samsung Internet";
+      else if (/UCBrowser/.test(ua)) browser = "UC Browser";
+      else if (/CriOS/.test(ua)) browser = "Chrome (iOS)";
+      else if (/FxiOS/.test(ua)) browser = "Firefox (iOS)";
+      else if (/Firefox\//.test(ua)) browser = "Mozilla Firefox";
+      else if (/Chrome\//.test(ua)) browser = "Google Chrome";
+      else if (/Version\/.*Safari/.test(ua)) browser = "Safari";
+
+      // ---- OS + MEREK/MODEL PERANGKAT ----
+      let os = "OS Tidak Dikenal";
+      let merek = "";
+      let deviceType = "Desktop";
+
+      if (/Android/.test(ua)) {
+        os = "Android";
+        deviceType = "Mobile";
+        const verMatch = ua.match(/Android\s([\d.]+)/);
+        if (verMatch) os += " " + verMatch[1];
+        const modelMatch = ua.match(/Android\s[\d.]+;\s*([^;)]+)\)/) || ua.match(/;\s*([A-Za-z0-9\-_ ]+)\sBuild\//);
+        if (modelMatch && modelMatch[1]) merek = modelMatch[1].replace(/Build.*/, "").trim();
+      } else if (/iPad/.test(ua)) {
+        os = "iPadOS"; merek = "iPad"; deviceType = "Tablet";
+      } else if (/iPhone/.test(ua)) {
+        os = "iOS"; merek = "iPhone"; deviceType = "Mobile";
+      } else if (/Macintosh/.test(ua)) {
+        os = "macOS"; merek = "Mac"; deviceType = "Desktop";
+      } else if (/Windows/.test(ua)) {
+        os = "Windows"; merek = "PC / Laptop"; deviceType = "Desktop";
+      } else if (/Linux/.test(ua)) {
+        os = "Linux"; merek = "PC / Laptop"; deviceType = "Desktop";
+      }
+
+      // Perhalus deteksi model dengan Client Hints (Android + browser Chromium saja; Safari/iOS tidak mendukung)
+      try {
+        if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+          const hints = await navigator.userAgentData.getHighEntropyValues(["model"]);
+          if (hints && hints.model) merek = hints.model;
+        }
+      } catch (e) { /* diamkan, fallback ke hasil regex UA di atas */ }
+
+      const osInfo = merek ? `${os} • ${merek}` : os;
+      return { browser, osInfo, deviceType };
     }
 
     function parseDateTime(dateStr, timeStr) {
@@ -612,9 +771,14 @@
       btnConfirm.disabled = true;
 
       try {
+        const deviceInfo = await getDeviceInfo();
+
         await db.collection("siswa").doc(tempUserObj.nomor_tes).update({
           is_online: true,
-          last_login: firebase.firestore.FieldValue.serverTimestamp()
+          last_login: firebase.firestore.FieldValue.serverTimestamp(),
+          browser_info: deviceInfo.browser,
+          os_info: deviceInfo.osInfo,
+          device_type: deviceInfo.deviceType
         });
 
         currentUser = tempUserObj;
@@ -636,6 +800,16 @@
       document.getElementById("page-dashboard").classList.remove("hidden");
 
       initRealtimePesanSiswa();
+
+      // Refresh info browser/OS/merek tiap dashboard dibuka (termasuk saat sesi
+      // dipulihkan dari localStorage), agar data di sisi proktor selalu terbaru.
+      getDeviceInfo().then((info) => {
+        db.collection("siswa").doc(currentUser.nomor_tes).update({
+          browser_info: info.browser,
+          os_info: info.osInfo,
+          device_type: info.deviceType
+        }).catch((err) => console.error("Gagal update device info ke Firestore:", err));
+      }).catch((err) => console.error("Gagal mendeteksi device info:", err));
 
       document.getElementById("user-display-name").innerText = currentUser.nama || "-";
       document.getElementById("user-display-nomortes").innerText = currentUser.nomor_tes;
@@ -771,7 +945,7 @@
       unsubscribeJadwalListener = db.collection("jadwal").onSnapshot((snapshot) => {
         renderJadwal(snapshot);
       }, () => {
-        container.innerHTML = "<p class='glass-card p-6 rounded-2xl text-red-500 text-center text-xs font-semibold'>Gagal memuat jadwal.</p>";
+        container.innerHTML = "<p class='glass-card p-6 rounded-2xl text-red-400 text-center text-xs font-semibold'>Gagal memuat jadwal.</p>";
       });
     }
 
@@ -834,25 +1008,25 @@
         let btnHTML = "";
 
         if (status === "selesai") {
-          badgeHTML = `<span class="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2.5 py-1 rounded-xl text-[10px] font-extrabold">Selesai / Terkunci</span>`;
+          badgeHTML = `<span class="bg-emerald-400/10 text-emerald-300 border border-emerald-400/25 px-2.5 py-1 rounded-xl text-[10px] font-extrabold">Selesai / Terkunci</span>`;
           btnHTML = `
             <div class="flex flex-col items-end gap-1.5">
-              <button disabled class="bg-slate-200 text-slate-400 text-xs font-bold px-3 py-1.5 rounded-xl cursor-not-allowed">Selesai</button>
-              <button onclick="kirimRequestResetSoal('${j.mapel}')" class="text-[10px] font-bold text-amber-600 hover:underline">📩 Request Reset</button>
+              <button disabled class="bg-white/5 text-slate-500 border border-white/10 text-xs font-bold px-3 py-1.5 rounded-xl cursor-not-allowed">Selesai</button>
+              <button onclick="kirimRequestResetSoal('${j.mapel}')" class="text-[10px] font-bold text-gold hover:underline">📩 Request Reset</button>
             </div>
           `;
         } else if (status === "berlangsung") {
-          badgeHTML = `<span class="bg-blue-500/10 text-blue-600 border border-blue-500/20 px-2.5 py-1 rounded-xl text-[10px] font-extrabold animate-pulse">● Sedang Berlangsung</span>`;
-          btnHTML = `<button onclick="persiapanMulaiUjian('${j.id}', '${j.mapel}', '${j.link_form}', '${j.tanggal}', '${j.jam_selesai}')" class="ios-btn-active bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-500/25 transition">Mulai Ujian</button>`;
+          badgeHTML = `<span class="bg-sky-400/10 text-sky-300 border border-sky-400/25 px-2.5 py-1 rounded-xl text-[10px] font-extrabold animate-pulse">● Sedang Berlangsung</span>`;
+          btnHTML = `<button onclick="persiapanMulaiUjian('${j.id}', '${j.mapel}', '${j.link_form}', '${j.tanggal}', '${j.jam_selesai}')" class="ios-btn-active btn-gold text-xs font-extrabold px-4 py-2 rounded-xl transition">Mulai Ujian</button>`;
         } else {
-          badgeHTML = `<span class="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2.5 py-1 rounded-xl text-[10px] font-extrabold">Belum Dimulai</span>`;
-          btnHTML = `<button disabled class="bg-slate-100 text-slate-400 text-xs font-bold px-4 py-2 rounded-xl cursor-not-allowed">Belum Buka</button>`;
+          badgeHTML = `<span class="bg-amber-400/10 text-amber-300 border border-amber-400/25 px-2.5 py-1 rounded-xl text-[10px] font-extrabold">Belum Dimulai</span>`;
+          btnHTML = `<button disabled class="bg-white/5 text-slate-500 border border-white/10 text-xs font-bold px-4 py-2 rounded-xl cursor-not-allowed">Belum Buka</button>`;
         }
 
         card.innerHTML = `
           <div>
-            <p class="font-extrabold text-slate-900 text-sm">${j.mapel}</p>
-            <p class="text-[11px] text-slate-500 font-medium mt-0.5">📅 ${j.tanggal} &bull; ⏰ ${j.jam_mulai} - ${j.jam_selesai} WIB</p>
+            <p class="font-extrabold text-white text-sm">${j.mapel}</p>
+            <p class="text-[11px] text-slate-400 font-medium mt-0.5">📅 ${j.tanggal} &bull; ⏰ ${j.jam_mulai} - ${j.jam_selesai} WIB</p>
             <div class="mt-2">${badgeHTML}</div>
           </div>
           <div>${btnHTML}</div>
