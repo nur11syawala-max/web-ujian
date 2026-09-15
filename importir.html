@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Guru - Kelola Soal Ujian</title>
+
+    <!-- Library Mammoth.js (Membaca Word) -->
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+
+    <!-- Library docx.js (Membuat & Download File Word Template) -->
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+
+    <!-- KaTeX CSS & JS (Rumus Matematika) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+    <!-- FIREBASE SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+        .hidden { display: none !important; }
+        .container { max-width: 960px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+        .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        h2, h3 { margin-top: 0; color: #0f172a; }
+
+        /* ===== Tombol umum ===== */
+        .btn { border: none; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+        .btn-sm { padding: 7px 12px; font-size: 12px; }
+        .btn-primary { background: #2563eb; color: white; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-secondary { background: #e2e8f0; color: #334155; }
+        .btn-secondary:hover { background: #cbd5e1; }
+        .btn-success { background: #16a34a; color: white; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-danger-outline { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+        .btn-danger-outline:hover { background: #fee2e2; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ===== Login ===== */
+        .login-wrap { min-height: 90vh; display: flex; align-items: center; justify-content: center; }
+        .login-box { background: white; border-radius: 14px; padding: 36px 32px; max-width: 380px; width: 100%; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15); text-align: center; }
+        .login-icon { width: 56px; height: 56px; background: #dbeafe; color: #1d4ed8; border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px auto; font-size: 26px; }
+        .login-box input { width: 100%; padding: 11px 14px; margin-bottom: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; text-align: center; }
+        .login-box .btn { width: 100%; justify-content: center; padding: 12px; font-size: 14px; margin-top: 4px; }
+        .login-error { color: #dc2626; font-size: 12px; font-weight: bold; margin-top: 8px; }
+
+        /* ===== Header umum ===== */
+        .topbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .topbar-title { font-size: 15px; font-weight: bold; color: #0f172a; }
+        .topbar-sub { font-size: 12px; color: #64748b; }
+
+        /* ===== Dashboard ===== */
+        .paket-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+        .paket-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+        .paket-card-top { display: flex; justify-content: space-between; align-items: center; }
+        .paket-card h3 { margin: 0; font-size: 15px; }
+        .paket-meta { font-size: 12px; color: #64748b; margin: 0; }
+        .paket-updated { font-size: 11px; color: #94a3b8; }
+        .paket-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .badge-pill { font-size: 10px; font-weight: bold; padding: 3px 10px; border-radius: 999px; }
+        .badge-draft { background: #fef3c7; color: #b45309; }
+        .badge-terbit { background: #dcfce7; color: #15803d; }
+        .empty-hint { color: #94a3b8; text-align: center; padding: 30px; font-size: 13px; }
+
+        /* ===== Form identitas ===== */
+        .meta-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .field label { display: block; font-size: 11px; color: #64748b; font-weight: bold; text-transform: uppercase; margin-bottom: 4px; }
+        .field input, .field select { width: 100%; padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+
+        /* ===== Autosave indicator ===== */
+        .autosave-status { font-size: 11px; color: #16a34a; font-weight: bold; display: flex; align-items: center; gap: 5px; }
+        .autosave-status.saving { color: #b45309; }
+        .autosave-status.error { color: #dc2626; }
+
+        /* ===== Daftar soal di editor ===== */
+        .soal-item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; background: #fafcff; }
+        .soal-item-left { flex: 1; min-width: 0; }
+        .soal-item-num { font-size: 11px; color: #94a3b8; font-weight: bold; }
+        .soal-item-text { font-size: 13px; color: #1e293b; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .soal-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+        .icon-btn { background: #eef2f7; border: none; border-radius: 6px; width: 28px; height: 28px; cursor: pointer; font-size: 13px; }
+        .icon-btn:hover { background: #dbeafe; }
+
+        /* ===== Upload area ===== */
+        .action-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 15px; }
+        .btn-download-template { background: #0284c7; color: white; border: none; padding: 10px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-download-template:hover { background: #0369a1; }
+        .upload-area { border: 2px dashed #94a3b8; border-radius: 8px; padding: 22px; text-align: center; background: #f8fafc; cursor: pointer; transition: 0.2s; }
+        .upload-area:hover { border-color: #2563eb; background: #eff6ff; }
+        input[type="file"] { display: none; }
+        .warning-box { background: #fffbebf5; border: 1px solid #fde68a; border-radius: 8px; padding: 13px 15px; font-size: 12px; color: #92400e; margin-top: 10px; }
+        .warning-box ul { margin: 6px 0 0 0; padding-left: 18px; }
+
+        /* ===== Smart Import (AI) ===== */
+        .smart-import-box { border: 2px dashed #7e22ce; border-radius: 8px; padding: 22px; text-align: center; background: #faf5ff; cursor: pointer; transition: 0.2s; margin-top: 14px; }
+        .smart-import-box:hover { border-color: #6b21a8; background: #f3e8ff; }
+        .smart-import-box.disabled { cursor: not-allowed; opacity: 0.6; }
+        .smart-badge { display: inline-block; font-size: 10px; font-weight: bold; background: #f3e8ff; color: #7e22ce; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+        .smart-import-status { font-size: 12px; margin-top: 10px; padding: 10px 12px; border-radius: 6px; display: none; }
+        .smart-import-status.loading { display: block; background: #eff6ff; color: #1d4ed8; }
+        .smart-import-status.error { display: block; background: #fef2f2; color: #dc2626; }
+        .smart-import-status.success { display: block; background: #f0fdf4; color: #15803d; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #bfdbfe; border-top-color: #1d4ed8; border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 6px; vertical-align: middle; }
+
+        /* ===== Modal Soal ===== */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+        .modal-box { background: white; border-radius: 14px; max-width: 620px; width: 100%; max-height: 88vh; overflow-y: auto; padding: 22px; }
+        .modal-box h3 { margin-bottom: 14px; }
+        .modal-box textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; min-height: 80px; margin-bottom: 14px; }
+        .modal-box select { padding: 9px 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; margin-bottom: 14px; width: 100%; }
+        .hint-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; font-size: 11.5px; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; }
+
+        .opt-edit-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .opt-letter-badge { width: 26px; height: 26px; border-radius: 50%; background: #e2e8f0; color: #334155; font-weight: bold; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .opt-text-input { flex: 1; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+        .opt-correct-input { width: 18px; height: 18px; flex-shrink: 0; }
+
+        .bs-edit-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+        .bs-num-badge { width: 22px; height: 22px; border-radius: 6px; background: #e2e8f0; color: #334155; font-weight: bold; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .bs-text-input { flex: 1; min-width: 140px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px; }
+        .bs-radio { font-size: 12px; display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+
+        .btn-remove-row { background: #fef2f2; color: #dc2626; border: none; border-radius: 6px; width: 26px; height: 26px; cursor: pointer; flex-shrink: 0; }
+        .btn-remove-row:hover { background: #fee2e2; }
+
+        .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; border-top: 1px solid #f1f5f9; padding-top: 14px; }
+
+        /* ===== Preview ===== */
+        .q-preview-item { border: 1px solid #cbd5e1; border-radius: 10px; padding: 18px; margin-bottom: 16px; background: #fff; }
+        .q-preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+        .badge { font-size: 12px; padding: 4px 10px; border-radius: 6px; font-weight: bold; }
+        .badge-pg { background: #dbeafe; color: #1d4ed8; }
+        .badge-kompleks { background: #f3e8ff; color: #7e22ce; }
+        .badge-bs { background: #fef3c7; color: #b45309; }
+        .q-content { font-size: 15px; margin-bottom: 16px; line-height: 1.6; }
+        .opt-box { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 8px; background: #ffffff; }
+        .opt-text { font-size: 14px; color: #1e293b; flex-grow: 1; }
+        .opt-letter { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #94a3b8; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; color: #475569; flex-shrink: 0; background: #f8fafc; }
+        .opt-box.is-key { border-color: #16a34a; background-color: #f0fdf4; }
+        .opt-box.is-key .opt-letter { border-color: #16a34a; background-color: #16a34a; color: white; }
+        .bs-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 8px; background: #ffffff; gap: 15px; }
+        .bs-text { font-size: 14px; color: #1e293b; flex-grow: 1; }
+        .bs-pills { display: flex; gap: 8px; flex-shrink: 0; }
+        .bs-pill { padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: bold; border: 1px solid #cbd5e1; color: #64748b; background: #f8fafc; }
+        .bs-pill.active-b { background: #16a34a; color: white; border-color: #16a34a; }
+        .bs-pill.active-s { background: #dc2626; color: white; border-color: #dc2626; }
+        .key-tag { font-size: 12px; font-weight: bold; color: #15803d; background: #dcfce7; padding: 5px 10px; border-radius: 6px; display: inline-block; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<!-- ==================== VIEW: LOGIN GURU ==================== -->
+<div id="view-login" class="login-wrap">
+    <div class="login-box">
+        <div class="login-icon">👩‍🏫</div>
+        <h2 style="margin-bottom:2px;">Portal Guru</h2>
+        <p style="font-size:12px; color:#64748b; margin-top:0;">Masuk dengan akun yang diberikan oleh Admin/Proktor.</p>
+        <form onsubmit="loginGuru(event)">
+            <input type="text" id="loginUsername" placeholder="Username" required autocomplete="username">
+            <input type="password" id="loginPin" placeholder="PIN" required autocomplete="current-password">
+            <button type="submit" class="btn btn-primary">Masuk Portal Guru</button>
+        </form>
+        <p id="loginError" class="login-error hidden"></p>
+    </div>
+</div>
+
+<!-- ==================== VIEW: DASHBOARD PAKET SOAL ==================== -->
+<div id="view-dashboard" class="container hidden">
+    <div class="card topbar">
+        <div>
+            <div class="topbar-title">📚 Paket Soal Saya</div>
+            <div class="topbar-sub" id="dashGuruInfo">-</div>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button class="btn btn-primary" onclick="bukaPaketBaru()">➕ Buat Paket Soal Baru</button>
+            <button class="btn btn-secondary" onclick="logoutGuru()">Keluar</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div id="paket-grid" class="paket-grid">
+            <p class="empty-hint">Memuat paket soal...</p>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== VIEW: EDITOR PAKET SOAL ==================== -->
+<div id="view-editor" class="container hidden">
+    <div class="card topbar">
+        <div>
+            <button class="btn btn-secondary btn-sm" onclick="kembaliKeDashboard()">⬅️ Daftar Paket</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span id="autosaveStatus" class="autosave-status">Draft baru, belum tersimpan</span>
+            <span id="statusBadgeEditor" class="badge-pill badge-draft">Draft</span>
+            <button class="btn btn-secondary btn-sm" onclick="togglePreviewEditor()" id="btnTogglePreview">👁️ Pratinjau</button>
+            <button class="btn btn-success" onclick="terbitkanPaket()">🚀 Terbitkan ke Siswa</button>
+        </div>
+    </div>
+
+    <!-- Identitas Paket -->
+    <div class="card">
+        <h3>Identitas Ujian</h3>
+        <div class="meta-form-grid">
+            <div class="field"><label>Mata Pelajaran *</label><input type="text" id="ed-mapel" placeholder="Contoh: Matematika" oninput="markDirty()"></div>
+            <div class="field"><label>Kelas / Jenjang</label><input type="text" id="ed-kelas" placeholder="Contoh: X" oninput="markDirty()"></div>
+            <div class="field"><label>Kode Paket</label><input type="text" id="ed-kode" placeholder="Contoh: MTK_X_P1" oninput="markDirty()"></div>
+            <div class="field"><label>Sesi Ujian</label><input type="text" id="ed-sesi" placeholder="Contoh: Sesi 1" oninput="markDirty()"></div>
+            <div class="field"><label>Tanggal</label><input type="date" id="ed-tanggal" oninput="markDirty()"></div>
+            <div class="field"><label>Waktu Buka</label><input type="time" id="ed-waktu-buka" oninput="markDirty()"></div>
+            <div class="field"><label>Waktu Tutup</label><input type="time" id="ed-waktu-tutup" oninput="markDirty()"></div>
+            <div class="field"><label>Durasi (menit)</label><input type="number" id="ed-durasi" min="1" placeholder="90" oninput="markDirty()"></div>
+        </div>
+    </div>
+
+    <!-- Daftar Soal -->
+    <div class="card">
+        <div class="topbar" style="margin-bottom:12px;">
+            <h3 style="margin:0;">Daftar Soal (<span id="jumlahSoalLabel">0</span>)</h3>
+            <button class="btn btn-primary btn-sm" onclick="bukaModalSoal()">➕ Tambah Soal Manual</button>
+        </div>
+        <div id="daftarSoalContainer" style="display:flex; flex-direction:column; gap:10px;">
+            <p class="empty-hint">Belum ada soal. Tambah manual atau import dari Word di bawah.</p>
+        </div>
+    </div>
+
+    <!-- Import dari Word -->
+    <div class="card">
+        <div class="action-header">
+            <h3 style="margin:0;">📄 Import Soal dari Word (.docx)</h3>
+            <button class="btn-download-template" onclick="downloadWordTemplate()">Download Contoh Format Word</button>
+        </div>
+        <div class="upload-area" onclick="document.getElementById('docxInput').click()">
+            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #334155;">Pilih atau Tarik File Word (.docx) di Sini</p>
+            <span style="font-size: 11px; color: #64748b;">Mendukung format naskah soal biasa (1. Soal, A. Opsi) maupun format tabel.</span>
+            <input type="file" id="docxInput" accept=".docx" onchange="processDocx(this)">
+        </div>
+        <div id="warningCard" class="warning-box hidden">
+            <strong id="warningTitle"></strong>
+            <ul class="warning-list" id="warningList"></ul>
+        </div>
+
+        <div class="smart-import-box" id="smartImportBox" onclick="document.getElementById('smartDocxInput').click()">
+            <p style="margin: 0; font-size: 14px; font-weight: bold; color: #6b21a8;">
+                🤖 Smart Import (AI) <span class="smart-badge">Beta</span>
+            </p>
+            <span style="font-size: 11px; color: #64748b;">
+                Khusus untuk file Word dengan rumus matematika asli (Insert &gt; Equation). Diproses AI, lebih lambat dari import biasa — selalu cek di Pratinjau sebelum Terbitkan.
+            </span>
+            <input type="file" id="smartDocxInput" accept=".docx" onchange="processSmartImport(this)">
+        </div>
+        <div id="smartImportStatus" class="smart-import-status"></div>
+    </div>
+
+    <!-- Preview -->
+    <div class="card hidden" id="previewCard">
+        <h3>👁️ Pratinjau Soal (tampilan siswa + kunci jawaban)</h3>
+        <div id="previewContainer"></div>
+    </div>
+</div>
+
+<!-- ==================== MODAL: TAMBAH / EDIT SOAL ==================== -->
+<div id="modal-soal" class="modal-overlay hidden">
+    <div class="modal-box">
+        <h3 id="modalSoalTitle">Tambah Soal Baru</h3>
+
+        <div class="field" style="margin-bottom:14px;">
+            <label>Tipe Soal</label>
+            <select id="modalSoalTipe" onchange="handleModalTipeChange()">
+                <option value="pg_biasa">Pilihan Ganda Biasa</option>
+                <option value="pg_kompleks">Pilihan Ganda Kompleks (jawaban bisa lebih dari satu)</option>
+                <option value="benar_salah">Benar / Salah (beberapa pernyataan)</option>
+            </select>
+        </div>
+
+        <div class="field" style="margin-bottom:6px;">
+            <label>Teks Soal (gunakan $...$ untuk rumus matematika)</label>
+            <textarea id="modalSoalTeks" placeholder="Contoh: Akar dari $x^2 - 5x + 6 = 0$ adalah..."></textarea>
+        </div>
+
+        <!-- Opsi PG -->
+        <div id="modalOptionsSection">
+            <div id="modalHintPG" class="hint-box hidden">Klik bulatan di samping opsi untuk menandai jawaban yang benar (hanya boleh 1).</div>
+            <div id="modalHintKompleks" class="hint-box hidden">Centang kotak di samping opsi untuk menandai semua jawaban yang benar (boleh lebih dari 1).</div>
+            <div id="modalOptionsContainer"></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="tambahOpsiModal()">➕ Tambah Opsi</button>
+        </div>
+
+        <!-- Pernyataan Benar/Salah -->
+        <div id="modalStatementsSection" class="hidden">
+            <div class="hint-box">Isi setiap pernyataan, lalu tandai Benar atau Salah untuk masing-masing.</div>
+            <div id="modalStatementsContainer"></div>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="tambahPernyataanModal()">➕ Tambah Pernyataan</button>
+        </div>
+
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="tutupModalSoal()">Batal</button>
+            <button class="btn btn-primary" onclick="simpanSoalModal()">Simpan Soal</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // FIREBASE
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBxzRT_1raosMspPnp5ccJn1K-_CN0vmG4",
+      authDomain: "ujian-smamuma.firebaseapp.com",
+      projectId: "ujian-smamuma",
+      storageBucket: "ujian-smamuma.firebasestorage.app",
+      messagingSenderId: "804166529055",
+      appId: "1:804166529055:web:29f114b1e8e6c9748c652a"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // GANTI dengan URL Cloud Run hasil deploy backend Smart Import (lihat README.md)
+    // Contoh: "https://smart-import-backend-xxxxxxxxxx-et.a.run.app"
+    const SMART_IMPORT_URL = "GANTI_DENGAN_URL_CLOUD_RUN_KAMU";
+
+    const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+    const TYPE_NAME_LABELS = {
+      pg_biasa: "Pilihan Ganda Biasa",
+      pg_kompleks: "Pilihan Ganda Kompleks",
+      benar_salah: "Benar / Salah"
+    };
+
+    let currentGuru = null;      
+    let currentPaket = null;     
+    let editingQuestionIndex = null;
+    let autosaveTimer = null;
+    let isDirty = false;
+    let listPaketCache = [];
+
+    // ==========================================
+    // LOGIN GURU
+    // ==========================================
+    async function loginGuru(e) {
+      e.preventDefault();
+      const username = document.getElementById("loginUsername").value.trim().toLowerCase();
+      const pin = document.getElementById("loginPin").value.trim();
+      const errorEl = document.getElementById("loginError");
+      errorEl.classList.add("hidden");
+
+      if (!username || !pin) return;
+
+      try {
+        const doc = await db.collection("guru").doc(username).get();
+        if (!doc.exists) {
+          errorEl.innerText = "Username tidak ditemukan. Hubungi Admin untuk dibuatkan akun.";
+          errorEl.classList.remove("hidden");
+          return;
+        }
+        const data = doc.data();
+        if (data.aktif === false) {
+          errorEl.innerText = "Akun ini dinonaktifkan oleh Admin.";
+          errorEl.classList.remove("hidden");
+          return;
+        }
+        if (String(data.pin) !== pin) {
+          errorEl.innerText = "PIN salah. Coba lagi atau hubungi Admin.";
+          errorEl.classList.remove("hidden");
+          return;
+        }
+
+        currentGuru = { username: doc.id, nama: data.nama || doc.id, mapel_ampu: data.mapel_ampu || "" };
+        document.getElementById("view-login").classList.add("hidden");
+        document.getElementById("view-dashboard").classList.remove("hidden");
+        document.getElementById("dashGuruInfo").innerText = `${currentGuru.nama}${currentGuru.mapel_ampu ? " · " + currentGuru.mapel_ampu : ""}`;
+        loadDashboardGuru();
+      } catch (err) {
+        errorEl.innerText = "Gagal menghubungi server: " + err.message;
+        errorEl.classList.remove("hidden");
+      }
+    }
+
+    function logoutGuru() {
+      if (isDirty && !confirm("Ada perubahan yang mungkin belum tersimpan. Tetap keluar?")) return;
+      currentGuru = null;
+      currentPaket = null;
+      document.getElementById("loginUsername").value = "";
+      document.getElementById("loginPin").value = "";
+      document.getElementById("view-dashboard").classList.add("hidden");
+      document.getElementById("view-editor").classList.add("hidden");
+      document.getElementById("view-login").classList.remove("hidden");
+    }
+
+    // ==========================================
+    // DASHBOARD PAKET SOAL
+    // ==========================================
+    async function loadDashboardGuru() {
+      const container = document.getElementById("paket-grid");
+      container.innerHTML = "<p class='empty-hint'>Memuat paket soal...</p>";
+
+      try {
+        const snap = await db.collection("paket_soal").where("guru_username", "==", currentGuru.username).get();
+        listPaketCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        listPaketCache.sort((a, b) => {
+          const ta = a.updated_at && a.updated_at.toMillis ? a.updated_at.toMillis() : 0;
+          const tb = b.updated_at && b.updated_at.toMillis ? b.updated_at.toMillis() : 0;
+          return tb - ta;
+        });
+        renderDaftarPaket();
+      } catch (err) {
+        container.innerHTML = `<p class='empty-hint'>Gagal memuat paket soal: ${err.message}</p>`;
+      }
+    }
+
+    function formatWaktu(ts) {
+      if (!ts || !ts.toDate) return "Baru saja";
+      const d = ts.toDate();
+      return "Diedit " + d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) + " " + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function renderDaftarPaket() {
+      const container = document.getElementById("paket-grid");
+      if (listPaketCache.length === 0) {
+        container.innerHTML = "<p class='empty-hint'>Belum ada paket soal. Klik \"➕ Buat Paket Soal Baru\" untuk mulai.</p>";
+        return;
+      }
+
+      container.innerHTML = listPaketCache.map(p => `
+        <div class="paket-card">
+          <div class="paket-card-top">
+            <span class="badge-pill ${p.status === 'terbit' ? 'badge-terbit' : 'badge-draft'}">${p.status === 'terbit' ? 'Terbit' : 'Draft'}</span>
+            <span class="paket-updated">${formatWaktu(p.updated_at)}</span>
+          </div>
+          <h3>${p.mapel || '(Belum diberi nama)'}</h3>
+          <p class="paket-meta">${p.kelas || '-'} · ${(p.questions || []).length} soal${p.kode_paket ? ' · ' + p.kode_paket : ''}</p>
+          <div class="paket-actions">
+            <button class="btn btn-primary btn-sm" onclick="bukaEditorDenganId('${p.id}')">Lanjutkan Edit</button>
+            <button class="btn btn-secondary btn-sm" onclick="duplikatPaket('${p.id}')">Duplikat</button>
+            <button class="btn btn-danger-outline btn-sm" onclick="hapusPaket('${p.id}')">Hapus</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function duplikatPaket(id) {
+      const asal = listPaketCache.find(p => p.id === id);
+      if (!asal) return;
+      if (!confirm(`Duplikat paket "${asal.mapel || '(tanpa nama)'}"?`)) return;
+
+      try {
+        const salinan = {
+          guru_username: currentGuru.username,
+          guru_nama: currentGuru.nama,
+          mapel: asal.mapel || "",
+          kelas: asal.kelas || "",
+          kode_paket: asal.kode_paket ? asal.kode_paket + "-COPY" : "",
+          sesi: asal.sesi || "",
+          tanggal: asal.tanggal || "",
+          waktu_buka: asal.waktu_buka || "",
+          waktu_tutup: asal.waktu_tutup || "",
+          durasi: asal.durasi || "",
+          questions: asal.questions || [],
+          status: "draft",
+          created_at: firebase.firestore.FieldValue.serverTimestamp(),
+          updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        const ref = await db.collection("paket_soal").add(salinan);
+        await loadDashboardGuru();
+        bukaEditorDenganId(ref.id);
+      } catch (err) {
+        alert("Gagal menduplikat paket: " + err.message);
+      }
+    }
+
+    async function hapusPaket(id) {
+      const p = listPaketCache.find(x => x.id === id);
+      if (!p) return;
+      const pesanTambahan = p.status === 'terbit'
+        ? "\n\nCatatan: paket ini berstatus TERBIT. Menghapus draft ini TIDAK otomatis mencabut soal yang sudah tersedia untuk siswa."
+        : "";
+      if (!confirm(`Hapus paket soal "${p.mapel || '(tanpa nama)'}"? Tindakan ini tidak bisa dibatalkan.${pesanTambahan}`)) return;
+
+      try {
+        await db.collection("paket_soal").doc(id).delete();
+        await loadDashboardGuru();
+      } catch (err) {
+        alert("Gagal menghapus paket: " + err.message);
+      }
+    }
+
+    // ==========================================
+    // EDITOR: BUKA / KEMBALI
+    // ==========================================
+    function paketKosong() {
+      return {
+        id: null,
+        guru_username: currentGuru.username,
+        guru_nama: currentGuru.nama,
+        mapel: "", kelas: "", kode_paket: "", sesi: "",
+        tanggal: "", waktu_buka: "", waktu_tutup: "", durasi: "",
+        questions: [],
+        status: "draft"
+      };
+    }
+
+    function bukaPaketBaru() {
+      currentPaket = paketKosong();
+      isDirty = false;
+      isiFormIdentitasDariPaket();
+      renderDaftarSoalEditor();
+      document.getElementById("autosaveStatus").innerText = "Draft baru, belum tersimpan";
+      document.getElementById("autosaveStatus").className = "autosave-status";
+      updateStatusBadgeEditor();
+      document.getElementById("previewCard").classList.add("hidden");
+      tampilkanView("editor");
+    }
+
+    async function bukaEditorDenganId(id) {
+      try {
+        const doc = await db.collection("paket_soal").doc(id).get();
+        if (!doc.exists) { alert("Paket soal tidak ditemukan (mungkin sudah dihapus)."); loadDashboardGuru(); return; }
+        currentPaket = { id: doc.id, ...doc.data() };
+        if (!Array.isArray(currentPaket.questions)) currentPaket.questions = [];
+        isDirty = false;
+        isiFormIdentitasDariPaket();
+        renderDaftarSoalEditor();
+        document.getElementById("autosaveStatus").innerText = "Tersimpan";
+        document.getElementById("autosaveStatus").className = "autosave-status";
+        updateStatusBadgeEditor();
+        document.getElementById("previewCard").classList.add("hidden");
+        tampilkanView("editor");
+      } catch (err) {
+        alert("Gagal membuka paket soal: " + err.message);
+      }
+    }
+
+    async function kembaliKeDashboard() {
+      if (isDirty) {
+        clearTimeout(autosaveTimer);
+        await saveDraft();
+      }
+      currentPaket = null;
+      tampilkanView("dashboard");
+      loadDashboardGuru();
+    }
+
+    function tampilkanView(view) {
+      document.getElementById("view-dashboard").classList.toggle("hidden", view !== "dashboard");
+      document.getElementById("view-editor").classList.toggle("hidden", view !== "editor");
+      window.scrollTo(0, 0);
+    }
+
+    function updateStatusBadgeEditor() {
+      const badge = document.getElementById("statusBadgeEditor");
+      const isTerbit = currentPaket.status === "terbit";
+      badge.innerText = isTerbit ? "Terbit" : "Draft";
+      badge.className = "badge-pill " + (isTerbit ? "badge-terbit" : "badge-draft");
+    }
+
+    // ==========================================
+    // FORM IDENTITAS <-> currentPaket
+    // ==========================================
+    function isiFormIdentitasDariPaket() {
+      document.getElementById("ed-mapel").value = currentPaket.mapel || "";
+      document.getElementById("ed-kelas").value = currentPaket.kelas || "";
+      document.getElementById("ed-kode").value = currentPaket.kode_paket || "";
+      document.getElementById("ed-sesi").value = currentPaket.sesi || "";
+      document.getElementById("ed-tanggal").value = currentPaket.tanggal || "";
+      document.getElementById("ed-waktu-buka").value = currentPaket.waktu_buka || "";
+      document.getElementById("ed-waktu-tutup").value = currentPaket.waktu_tutup || "";
+      document.getElementById("ed-durasi").value = currentPaket.durasi || "";
+    }
+
+    function ambilFormIdentitasKePaket() {
+      currentPaket.mapel = document.getElementById("ed-mapel").value.trim();
+      currentPaket.kelas = document.getElementById("ed-kelas").value.trim();
+      currentPaket.kode_paket = document.getElementById("ed-kode").value.trim();
+      currentPaket.sesi = document.getElementById("ed-sesi").value.trim();
+      currentPaket.tanggal = document.getElementById("ed-tanggal").value;
+      currentPaket.waktu_buka = document.getElementById("ed-waktu-buka").value;
+      currentPaket.waktu_tutup = document.getElementById("ed-waktu-tutup").value;
+      currentPaket.durasi = document.getElementById("ed-durasi").value;
+    }
+
+    // ==========================================
+    // AUTOSAVE DRAFT
+    // ==========================================
+    function markDirty() {
+      isDirty = true;
+      const el = document.getElementById("autosaveStatus");
+      el.innerText = "Menyimpan...";
+      el.className = "autosave-status saving";
+      clearTimeout(autosaveTimer);
+      autosaveTimer = setTimeout(saveDraft, 1200);
+    }
+
+    async function saveDraft() {
+      if (!currentPaket) return;
+      ambilFormIdentitasKePaket();
+
+      const payload = {
+        guru_username: currentGuru.username,
+        guru_nama: currentGuru.nama,
+        mapel: currentPaket.mapel,
+        kelas: currentPaket.kelas,
+        kode_paket: currentPaket.kode_paket,
+        sesi: currentPaket.sesi,
+        tanggal: currentPaket.tanggal,
+        waktu_buka: currentPaket.waktu_buka,
+        waktu_tutup: currentPaket.waktu_tutup,
+        durasi: currentPaket.durasi,
+        questions: currentPaket.questions,
+        status: currentPaket.status || "draft",
+        updated_at: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      const el = document.getElementById("autosaveStatus");
+      try {
+        if (currentPaket.id) {
+          await db.collection("paket_soal").doc(currentPaket.id).set(payload, { merge: true });
+        } else {
+          payload.created_at = firebase.firestore.FieldValue.serverTimestamp();
+          const ref = await db.collection("paket_soal").add(payload);
+          currentPaket.id = ref.id;
+        }
+        isDirty = false;
+        const now = new Date();
+        el.innerText = "Tersimpan otomatis pukul " + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        el.className = "autosave-status";
+      } catch (err) {
+        el.innerText = "⚠️ Gagal menyimpan: " + err.message;
+        el.className = "autosave-status error";
+      }
+    }
+
+    // ==========================================
+    // DAFTAR SOAL DI EDITOR
+    // ==========================================
+    function stripHtml(html) {
+      const tmp = document.createElement("div");
+      tmp.innerHTML = html || "";
+      return tmp.textContent || tmp.innerText || "";
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function escapeAttr(str) {
+      return String(str).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    function renderDaftarSoalEditor() {
+      const container = document.getElementById("daftarSoalContainer");
+      const list = currentPaket.questions || [];
+      document.getElementById("jumlahSoalLabel").innerText = list.length;
+
+      if (list.length === 0) {
+        container.innerHTML = "<p class='empty-hint'>Belum ada soal. Tambah manual atau import dari Word di bawah.</p>";
+        return;
+      }
+
+      let badgeMap = { pg_biasa: 'badge-pg', pg_kompleks: 'badge-kompleks', benar_salah: 'badge-bs' };
+
+      container.innerHTML = list.map((q, i) => `
+        <div class="soal-item">
+          <div class="soal-item-left">
+            <div class="soal-item-num">
+              Soal ${i + 1}
+              <span class="badge ${badgeMap[q.type] || 'badge-pg'}" style="margin-left:6px;">${q.typeName || TYPE_NAME_LABELS[q.type] || 'Tipe Soal'}</span>
+              ${!q.key ? '<span class="badge" style="background:#fee2e2; color:#dc2626; margin-left:6px;">Kunci belum diisi</span>' : ''}
+            </div>
+            <div class="soal-item-text">${stripHtml(q.text)}</div>
+          </div>
+          <div class="soal-item-actions">
+            <button class="icon-btn" title="Pindah ke atas" onclick="pindahSoal(${i}, -1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+            <button class="icon-btn" title="Pindah ke bawah" onclick="pindahSoal(${i}, 1)" ${i === list.length - 1 ? 'disabled' : ''}>▼</button>
+            <button class="icon-btn" title="Edit" onclick="bukaModalSoal(${i})">✏️</button>
+            <button class="icon-btn" title="Hapus" onclick="hapusSoal(${i})">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function pindahSoal(index, delta) {
+      const list = currentPaket.questions;
+      const target = index + delta;
+      if (target < 0 || target >= list.length) return;
+      [list[index], list[target]] = [list[target], list[index]];
+      renderDaftarSoalEditor();
+      markDirty();
+    }
+
+    function hapusSoal(index) {
+      if (!confirm(`Hapus soal nomor ${index + 1}?`)) return;
+      currentPaket.questions.splice(index, 1);
+      renderDaftarSoalEditor();
+      markDirty();
+    }
+
+    // ==========================================
+    // MODAL TAMBAH / EDIT SOAL
+    // ==========================================
+    function toggleModalSections() {
+      const type = document.getElementById("modalSoalTipe").value;
+      const isBS = type === "benar_salah";
+      document.getElementById("modalOptionsSection").classList.toggle("hidden", isBS);
+      document.getElementById("modalStatementsSection").classList.toggle("hidden", !isBS);
+      document.getElementById("modalHintPG").classList.toggle("hidden", type !== "pg_biasa");
+      document.getElementById("modalHintKompleks").classList.toggle("hidden", type !== "pg_kompleks");
+    }
+
+    function renderModalOptions(items) {
+      const isKompleks = document.getElementById("modalSoalTipe").value === "pg_kompleks";
+      document.getElementById("modalOptionsContainer").innerHTML = items.map((it, i) => `
+        <div class="opt-edit-row">
+          <input type="${isKompleks ? 'checkbox' : 'radio'}" name="modalOptCorrect" class="opt-correct-input" ${it.correct ? 'checked' : ''}>
+          <span class="opt-letter-badge">${LETTERS[i]}</span>
+          <input type="text" class="opt-text-input" placeholder="Teks opsi ${LETTERS[i]}" value="${escapeAttr(it.text || '')}">
+          <button type="button" class="btn-remove-row" onclick="hapusOpsiModalRow(this)">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function renderModalStatements(items) {
+      document.getElementById("modalStatementsContainer").innerHTML = items.map((it, i) => `
+        <div class="bs-edit-row">
+          <span class="bs-num-badge">${i + 1}</span>
+          <input type="text" class="bs-text-input" placeholder="Pernyataan ${i + 1}" value="${escapeAttr(it.text || '')}">
+          <label class="bs-radio"><input type="radio" name="bsval-${i}" value="B" ${it.value === 'B' ? 'checked' : ''}> Benar</label>
+          <label class="bs-radio"><input type="radio" name="bsval-${i}" value="S" ${it.value === 'S' ? 'checked' : ''}> Salah</label>
+          <button type="button" class="btn-remove-row" onclick="hapusPernyataanModalRow(this)">✕</button>
+        </div>
+      `).join('');
+    }
+
+    function tambahOpsiModal() {
+      const rows = document.querySelectorAll("#modalOptionsContainer .opt-edit-row");
+      if (rows.length >= 5) { alert("Maksimal 5 opsi (A-E)."); return; }
+      const isKompleks = document.getElementById("modalSoalTipe").value === "pg_kompleks";
+      const letter = LETTERS[rows.length];
+      const div = document.createElement("div");
+      div.className = "opt-edit-row";
+      div.innerHTML = `
+        <input type="${isKompleks ? 'checkbox' : 'radio'}" name="modalOptCorrect" class="opt-correct-input">
+        <span class="opt-letter-badge">${letter}</span>
+        <input type="text" class="opt-text-input" placeholder="Teks opsi ${letter}">
+        <button type="button" class="btn-remove-row" onclick="hapusOpsiModalRow(this)">✕</button>
+      `;
+      document.getElementById("modalOptionsContainer").appendChild(div);
+    }
+
+    function hapusOpsiModalRow(btn) {
+      const container = document.getElementById("modalOptionsContainer");
+      const rows = container.querySelectorAll(".opt-edit-row");
+      if (rows.length <= 2) { alert("Minimal 2 opsi."); return; }
+      btn.closest(".opt-edit-row").remove();
+      container.querySelectorAll(".opt-edit-row").forEach((row, i) => {
+        row.querySelector(".opt-letter-badge").innerText = LETTERS[i];
+      });
+    }
+
+    function tambahPernyataanModal() {
+      const rows = document.querySelectorAll("#modalStatementsContainer .bs-edit-row");
+      const i = rows.length;
+      const div = document.createElement("div");
+      div.className = "bs-edit-row";
+      div.innerHTML = `
+        <span class="bs-num-badge">${i + 1}</span>
+        <input type="text" class="bs-text-input" placeholder="Pernyataan ${i + 1}">
+        <label class="bs-radio"><input type="radio" name="bsval-${i}" value="B" checked> Benar</label>
+        <label class="bs-radio"><input type="radio" name="bsval-${i}" value="S"> Salah</label>
+        <button type="button" class="btn-remove-row" onclick="hapusPernyataanModalRow(this)">✕</button>
+      `;
+      document.getElementById("modalStatementsContainer").appendChild(div);
+    }
+
+    function hapusPernyataanModalRow(btn) {
+      const container = document.getElementById("modalStatementsContainer");
+      const rows = container.querySelectorAll(".bs-edit-row");
+      if (rows.length <= 1) { alert("Minimal 1 pernyataan."); return; }
+      btn.closest(".bs-edit-row").remove();
+      container.querySelectorAll(".bs-edit-row").forEach((row, i) => {
+        row.querySelector(".bs-num-badge").innerText = i + 1;
+        row.querySelector(".bs-text-input").placeholder = "Pernyataan " + (i + 1);
+        row.querySelectorAll("input[type=radio]").forEach(r => r.name = "bsval-" + i);
+      });
+    }
+
+    function handleModalTipeChange() {
+      toggleModalSections();
+      const type = document.getElementById("modalSoalTipe").value;
+      if (type === "benar_salah") {
+        renderModalStatements([{ text: "", value: "B" }]);
+      } else {
+        renderModalOptions([{ text: "", correct: false }, { text: "", correct: false }]);
+      }
+    }
+
+    function bukaModalSoal(index) {
+      editingQuestionIndex = (index === undefined) ? null : index;
+      const q = (editingQuestionIndex !== null) ? currentPaket.questions[editingQuestionIndex] : null;
+
+      document.getElementById("modalSoalTitle").innerText = q ? `Edit Soal Nomor ${editingQuestionIndex + 1}` : "Tambah Soal Baru";
+      const type = q ? (q.type || "pg_biasa") : "pg_biasa";
+      document.getElementById("modalSoalTipe").value = type;
+      document.getElementById("modalSoalTeks").value = q ? stripHtml(q.text) : "";
+
+      toggleModalSections();
+
+      const keys = (q && q.key) ? q.key.split(",").map(k => k.trim().toUpperCase()) : [];
+
+      if (type === "benar_salah") {
+        const items = (q && q.statements && q.statements.length)
+          ? q.statements.map((st, i) => ({ text: stripHtml(st), value: keys[i] === "S" ? "S" : "B" }))
+          : [{ text: "", value: "B" }];
+        renderModalStatements(items);
+      } else {
+        const items = (q && q.options && q.options.length)
+          ? q.options.map((opt, i) => ({ text: stripHtml(opt), correct: keys.includes(LETTERS[i]) }))
+          : [{ text: "", correct: false }, { text: "", correct: false }];
+        renderModalOptions(items);
+      }
+
+      document.getElementById("modal-soal").classList.remove("hidden");
+    }
+
+    function tutupModalSoal() {
+      document.getElementById("modal-soal").classList.add("hidden");
+      editingQuestionIndex = null;
+    }
+
+    function simpanSoalModal() {
+      const type = document.getElementById("modalSoalTipe").value;
+      const rawText = document.getElementById("modalSoalTeks").value.trim();
+      if (!rawText) { alert("Teks soal wajib diisi!"); return; }
+
+      const q = { type: type, typeName: TYPE_NAME_LABELS[type], text: escapeHtml(rawText) };
+
+      if (type === "benar_salah") {
+        const rows = document.querySelectorAll("#modalStatementsContainer .bs-edit-row");
+        const statements = []; const keys = []; let valid = true;
+        rows.forEach(row => {
+          const txt = row.querySelector(".bs-text-input").value.trim();
+          const checked = row.querySelector("input[type=radio]:checked");
+          if (!txt) valid = false;
+          statements.push(escapeHtml(txt));
+          keys.push(checked ? checked.value : "B");
+        });
+        if (!valid) { alert("Semua pernyataan wajib diisi!"); return; }
+        q.statements = statements;
+        q.key = keys.join(", ");
+      } else {
+        const rows = document.querySelectorAll("#modalOptionsContainer .opt-edit-row");
+        const options = []; const keys = []; let valid = true; let hasCorrect = false;
+        rows.forEach((row, i) => {
+          const txt = row.querySelector(".opt-text-input").value.trim();
+          const correctInput = row.querySelector(".opt-correct-input");
+          if (!txt) valid = false;
+          options.push(escapeHtml(txt));
+          if (correctInput.checked) { keys.push(LETTERS[i]); hasCorrect = true; }
+        });
+        if (!valid) { alert("Semua opsi wajib diisi teksnya!"); return; }
+        if (!hasCorrect) { alert("Tandai minimal 1 opsi sebagai kunci jawaban yang benar!"); return; }
+        q.options = options;
+        q.key = keys.join(", ");
+      }
+
+      if (editingQuestionIndex !== null) {
+        q.id = currentPaket.questions[editingQuestionIndex].id;
+        currentPaket.questions[editingQuestionIndex] = q;
+      } else {
+        const maxId = currentPaket.questions.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0);
+        q.id = maxId + 1;
+        currentPaket.questions.push(q);
+      }
+
+      tutupModalSoal();
+      renderDaftarSoalEditor();
+      markDirty();
+    }
+
+    // ==========================================
+    // IMPORT DARI WORD (.docx) - HYBRID & FLEXIBLE
+    // ==========================================
+    async function downloadWordTemplate() {
+        if (!window.docx) {
+            alert("Sistem pembuatan template sedang disiapkan, silakan coba lagi.");
+            return;
+        }
+        const { Document, Packer, Paragraph, TextRun } = window.docx;
+
+        const doc = new Document({
+            sections: [{
+                children: [
+                    new Paragraph({ children: [new TextRun({ text: "Mata Pelajaran: Matematika", bold: true, size: 24 })] }),
+                    new Paragraph({ children: [new TextRun({ text: "Kelas: X", bold: true, size: 24 })] }),
+                    new Paragraph({ text: "" }),
+                    new Paragraph({ children: [new TextRun({ text: "1. Akar-akar dari persamaan kuadrat $x^2 - 5x + 6 = 0$ adalah...", bold: true })] }),
+                    new Paragraph({ text: "A. $x = 1$ atau $x = 6$" }),
+                    new Paragraph({ text: "B. $x = 2$ atau $x = 3$" }),
+                    new Paragraph({ text: "C. $x = -2$ atau $x = -3$" }),
+                    new Paragraph({ text: "D. $x = 0$ atau $x = 5$" }),
+                    new Paragraph({ text: "E. $x = 3$ atau $x = 4$" }),
+                    new Paragraph({ children: [new TextRun({ text: "Kunci: B", bold: true })] }),
+                    new Paragraph({ text: "" }),
+                    new Paragraph({ children: [new TextRun({ text: "2. Pecahan mana yang bernilai setara atau lebih besar dari 1/2?", bold: true })] }),
+                    new Paragraph({ text: "A. 2/4" }),
+                    new Paragraph({ text: "B. 1/3" }),
+                    new Paragraph({ text: "C. 3/5" }),
+                    new Paragraph({ text: "D. 4/10" }),
+                    new Paragraph({ text: "E. 5/10" }),
+                    new Paragraph({ children: [new TextRun({ text: "Kunci: A, C, E", bold: true })] })
+                ]
+            }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "Contoh_Format_Soal.docx";
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function processDocx(input) {
+        const file = input.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const arrayBuffer = e.target.result;
+            Promise.all([
+                mammoth.convertToHtml({ arrayBuffer: arrayBuffer }),
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+            ]).then(([htmlRes, textRes]) => {
+                parseFlexibleDocx(htmlRes.value, textRes.value);
+            }).catch(err => alert("Gagal membaca file Word: " + err.message));
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // ==========================================
+    // SMART IMPORT (AI) - via backend Cloud Run + Gemini
+    // ==========================================
+    function setSmartImportStatus(kind, message) {
+        const el = document.getElementById("smartImportStatus");
+        el.className = "smart-import-status " + (kind || "");
+        el.innerHTML = message || "";
+    }
+
+    async function processSmartImport(input) {
+        const file = input.files[0];
+        if (!file) return;
+
+        if (!SMART_IMPORT_URL || SMART_IMPORT_URL.includes("GANTI_DENGAN_URL")) {
+            alert("URL backend Smart Import belum diisi. Lihat README.md untuk cara deploy dan mengisi SMART_IMPORT_URL di kode.");
+            input.value = "";
+            return;
+        }
+
+        const box = document.getElementById("smartImportBox");
+        box.classList.add("disabled");
+        setSmartImportStatus("loading", '<span class="spinner"></span> Memproses dengan AI (bisa 10-30 detik untuk file panjang)...');
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const resp = await fetch(SMART_IMPORT_URL + "/parse-docx", {
+                method: "POST",
+                body: formData
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                throw new Error(data.error || ("Server merespons status " + resp.status));
+            }
+
+            if (!Array.isArray(data.questions) || data.questions.length === 0) {
+                throw new Error("AI tidak menemukan soal apa pun di file ini.");
+            }
+
+            mergeSmartImportQuestions(data.questions);
+        } catch (err) {
+            setSmartImportStatus("error", "❌ Smart Import gagal: " + escapeHtml(err.message));
+        } finally {
+            box.classList.remove("disabled");
+            input.value = "";
+        }
+    }
+
+    function mergeSmartImportQuestions(rawQuestions) {
+        const warnings = [];
+        let nextId = currentPaket.questions.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0);
+        let jumlahDitambahkan = 0;
+
+        rawQuestions.forEach((rq, i) => {
+            const nomorAsli = i + 1;
+            const type = ["pg_biasa", "pg_kompleks", "benar_salah"].includes(rq.type) ? rq.type : "pg_biasa";
+
+            if (!rq.text || !String(rq.text).trim()) {
+                warnings.push(`Item AI nomor ${nomorAsli}: dilewati, teks soal kosong.`);
+                return;
+            }
+
+            nextId++;
+            const qData = {
+                id: nextId,
+                type: type,
+                typeName: TYPE_NAME_LABELS[type] || "Tipe Soal",
+                text: escapeHtml(rq.text),
+                options: (rq.options || []).map(o => escapeHtml(o)),
+                statements: (rq.statements || []).map(s => escapeHtml(s)),
+                key: (rq.key || "").toString().trim()
+            };
+
+            if ((type === "pg_biasa" || type === "pg_kompleks") && qData.options.length < 2) {
+                warnings.push(`Soal nomor ${nextId}: opsi jawaban kurang dari 2, cek manual.`);
+            }
+            if (type === "benar_salah" && qData.statements.length === 0) {
+                warnings.push(`Soal nomor ${nextId}: tidak ada pernyataan Benar/Salah terbaca, cek manual.`);
+            }
+            if (!qData.key) {
+                warnings.push(`Soal nomor ${nextId}: kunci jawaban belum diisi (tidak terdeteksi oleh AI).`);
+            }
+
+            currentPaket.questions.push(qData);
+            jumlahDitambahkan++;
+        });
+
+        renderDaftarSoalEditor();
+        markDirty();
+
+        if (jumlahDitambahkan === 0) {
+            setSmartImportStatus("error", "❌ Tidak ada soal valid yang berhasil ditambahkan.");
+            return;
+        }
+
+        setSmartImportStatus("success", `✅ ${jumlahDitambahkan} soal berhasil ditambahkan lewat Smart Import (AI). Wajib dicek di Pratinjau sebelum Terbitkan!`);
+        tampilkanWarningsImport(warnings, jumlahDitambahkan);
+
+        // Otomatis buka pratinjau supaya guru langsung mengecek hasil AI
+        const previewCard = document.getElementById("previewCard");
+        if (previewCard.classList.contains("hidden")) {
+            togglePreviewEditor();
+        } else {
+            renderPreviewEditor();
+        }
+        previewCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function parseFlexibleDocx(htmlContent, rawTextContent) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(htmlContent, 'text/html');
+        const tables = doc.querySelectorAll('table');
+        const warnings = [];
+        const imported = [];
+
+        // OPSI 1: JIKA MEMAKAI TABEL (TEMPLATE LAMA)
+        if (tables.length >= 1) {
+            let startIdx = 0;
+            if (tables.length > 1) {
+                const meta = parseMetaTable(tables[0]);
+                if (!currentPaket.mapel && meta.mapel) currentPaket.mapel = meta.mapel;
+                if (!currentPaket.kelas && meta.kelas) currentPaket.kelas = meta.kelas;
+                if (!currentPaket.kode_paket && meta.kode) currentPaket.kode_paket = meta.kode;
+                startIdx = 1;
+            }
+            for (let i = startIdx; i < tables.length; i++) {
+                const qData = parseQuestionTable(tables[i], i - startIdx + 1, warnings);
+                if (qData) imported.push(qData);
+            }
+        } 
+        // OPSI 2: TEKS BEBAS / TANPA TABEL
+        else {
+            const lines = rawTextContent.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let currentQ = null;
+
+            lines.forEach(line => {
+                const lower = line.toLowerCase();
+                if (lower.startsWith('mata pelajaran:') || lower.startsWith('mapel:')) {
+                    if (!currentPaket.mapel) currentPaket.mapel = line.split(':')[1].trim();
+                    return;
+                }
+                if (lower.startsWith('kelas:')) {
+                    if (!currentPaket.kelas) currentPaket.kelas = line.split(':')[1].trim();
+                    return;
+                }
+
+                // Deteksi Nomor Soal: "1. Soal..." atau "1) Soal..."
+                const soalMatch = line.match(/^(\d+)[\.\)]\s*(.*)/);
+                if (soalMatch) {
+                    if (currentQ) imported.push(currentQ);
+                    currentQ = {
+                        text: escapeHtml(soalMatch[2]),
+                        options: [],
+                        statements: [],
+                        type: 'pg_biasa',
+                        key: ''
+                    };
+                    return;
+                }
+
+                // Deteksi Opsi: "A. Opsi..." atau "A) Opsi..."
+                const opsiMatch = line.match(/^([A-E])[\.\)]\s*(.*)/i);
+                if (opsiMatch && currentQ) {
+                    currentQ.options.push(escapeHtml(opsiMatch[2]));
+                    return;
+                }
+
+                // Deteksi Kunci: "Kunci: A" / "Kunci: A, C"
+                const kunciMatch = line.match(/^(?:kunci|jawaban):\s*(.*)/i);
+                if (kunciMatch && currentQ) {
+                    const k = kunciMatch[1].trim().toUpperCase();
+                    currentQ.key = k;
+                    if (k.includes(',') && (k.includes('B') || k.includes('S')) && !k.includes('A') && !k.includes('C')) {
+                        currentQ.type = 'benar_salah';
+                    } else if (k.includes(',')) {
+                        currentQ.type = 'pg_kompleks';
+                    } else {
+                        currentQ.type = 'pg_biasa';
+                    }
+                    return;
+                }
+
+                // Jika paragraf lanjutan soal
+                if (currentQ && currentQ.options.length === 0 && !line.toLowerCase().startsWith('kunci')) {
+                    currentQ.text += "<br>" + escapeHtml(line);
+                }
+            });
+
+            if (currentQ) imported.push(currentQ);
+        }
+
+        let nextId = currentPaket.questions.reduce((m, x) => Math.max(m, Number(x.id) || 0), 0);
+        imported.forEach(q => {
+            nextId++;
+            q.id = nextId;
+            q.typeName = TYPE_NAME_LABELS[q.type] || "Tipe Soal";
+            if (!q.key) warnings.push(`Soal Nomor ${q.id}: Kunci jawaban belum diisi!`);
+            currentPaket.questions.push(q);
+        });
+
+        isiFormIdentitasDariPaket();
+        renderDaftarSoalEditor();
+        tampilkanWarningsImport(warnings, imported.length);
+        markDirty();
+        document.getElementById("docxInput").value = "";
+    }
+
+    function parseMetaTable(table) {
+        const meta = {};
+        table.querySelectorAll('tr').forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+                const key = cells[0].innerText.trim().toLowerCase();
+                const val = cells[1].innerText.trim();
+                if (key.includes('mata pelajaran') || key.includes('mapel')) meta.mapel = val;
+                else if (key.includes('kelas') || key.includes('jenjang')) meta.kelas = val;
+                else if (key.includes('kode') || key.includes('paket')) meta.kode = val;
+            }
+        });
+        return meta;
+    }
+
+    function parseQuestionTable(table, qIndex, warnings) {
+        const rows = table.querySelectorAll('tr');
+        const qData = { id: qIndex, options: [], statements: [] };
+
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+                const label = cells[0].innerText.trim().toUpperCase();
+                const contentCell = cells[1];
+                const textHTML = contentCell.innerHTML;
+
+                if (label.includes('TIPE')) {
+                    const typeText = contentCell.innerText.trim().toLowerCase();
+                    if (typeText.includes('kompleks')) qData.type = 'pg_kompleks';
+                    else if (typeText.includes('bs') || typeText.includes('benar')) qData.type = 'benar_salah';
+                    else qData.type = 'pg_biasa';
+                }
+                else if (label.includes('SOAL')) qData.text = textHTML;
+                else if (label.startsWith('OPSI')) qData.options.push(textHTML);
+                else if (label.startsWith('PERNYATAAN')) qData.statements.push(textHTML);
+                else if (label.includes('KUNCI')) qData.key = contentCell.innerText.trim();
+            }
+        });
+
+        if (!qData.type) qData.type = 'pg_biasa';
+        return qData;
+    }
+
+    function tampilkanWarningsImport(warnings, jumlahImport) {
+        const card = document.getElementById("warningCard");
+        const title = document.getElementById("warningTitle");
+        const list = document.getElementById("warningList");
+
+        title.innerText = `✅ ${jumlahImport} soal berhasil diimpor dari Word.` + (warnings.length ? ` Ada ${warnings.length} catatan perlu diperiksa:` : "");
+        list.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+        card.classList.remove("hidden");
+    }
+
+    // ==========================================
+    // PREVIEW
+    // ==========================================
+    function togglePreviewEditor() {
+      const card = document.getElementById("previewCard");
+      const willShow = card.classList.contains("hidden");
+      card.classList.toggle("hidden");
+      if (willShow) renderPreviewEditor();
+    }
+
+    function renderPreviewEditor() {
+      const container = document.getElementById("previewContainer");
+      const questions = currentPaket.questions || [];
+
+      if (questions.length === 0) {
+        container.innerHTML = "<p class='empty-hint'>Belum ada soal untuk dipratinjau.</p>";
+        return;
+      }
+
+      let badgeMap = { pg_biasa: 'badge-pg', pg_kompleks: 'badge-kompleks', benar_salah: 'badge-bs' };
+
+      container.innerHTML = questions.map((q, idx) => {
+        let badgeHTML = `<span class="badge ${badgeMap[q.type] || 'badge-pg'}">${q.typeName || TYPE_NAME_LABELS[q.type] || 'Tipe Soal'}</span>`;
+        let optionsHTML = '';
+
+        if (q.type === 'pg_biasa' || q.type === 'pg_kompleks') {
+          const keys = (q.key || '').split(',').map(k => k.trim().toUpperCase());
+          optionsHTML = (q.options || []).map((opt, i) => {
+            const label = LETTERS[i] || (i + 1);
+            const isKey = keys.includes(label);
+            return `<div class="opt-box ${isKey ? 'is-key' : ''}"><div class="opt-letter">${label}</div><div class="opt-text">${opt}</div></div>`;
+          }).join('');
+        } else if (q.type === 'benar_salah') {
+          const keys = (q.key || '').split(',').map(k => k.trim().toUpperCase());
+          optionsHTML = (q.statements || []).map((st, i) => {
+            const keyVal = keys[i] || '';
+            return `<div class="bs-row"><div class="bs-text"><b>${i + 1}.</b> ${st}</div><div class="bs-pills"><div class="bs-pill ${keyVal === 'B' ? 'active-b' : ''}">BENAR</div><div class="bs-pill ${keyVal === 'S' ? 'active-s' : ''}">SALAH</div></div></div>`;
+          }).join('');
+        }
+
+        return `
+          <div class="q-preview-item">
+            <div class="q-preview-header">
+              <strong style="color:#334155; font-size: 15px;">Soal Nomor ${idx + 1}</strong>
+              ${badgeHTML}
+            </div>
+            <div class="q-content">${q.text}</div>
+            <div>${optionsHTML}</div>
+            <div class="key-tag">Kunci Jawaban: ${q.key || 'Belum diisi'}</div>
+          </div>
+        `;
+      }).join('');
+
+      setTimeout(() => {
+        if (window.renderMathInElement) {
+          renderMathInElement(document.body, {
+            delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+            throwOnError: false
+          });
+        }
+      }, 80);
+    }
+
+    // ==========================================
+    // TERBITKAN KE SISWA
+    // ==========================================
+    async function terbitkanPaket() {
+      ambilFormIdentitasKePaket();
+
+      if (!currentPaket.mapel) { alert("Mata Pelajaran wajib diisi sebelum diterbitkan!"); return; }
+      if (!currentPaket.questions.length) { alert("Tambahkan minimal 1 soal sebelum diterbitkan!"); return; }
+
+      const idxNoKey = currentPaket.questions.findIndex(q => !q.key);
+      if (idxNoKey !== -1) {
+        if (!confirm(`Soal nomor ${idxNoKey + 1} belum punya kunci jawaban. Tetap terbitkan?`)) return;
+      }
+
+      if (!confirm(`Terbitkan paket soal "${currentPaket.mapel}" (${currentPaket.questions.length} soal) untuk dikerjakan siswa sekarang?`)) return;
+
+      try {
+        currentPaket.status = "terbit";
+        clearTimeout(autosaveTimer);
+        await saveDraft();
+
+        await db.collection("soal").doc(currentPaket.mapel).set({
+          mapel: currentPaket.mapel,
+          questions: currentPaket.questions,
+          updated_at: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+
+        updateStatusBadgeEditor();
+        alert(`Berhasil! Soal untuk "${currentPaket.mapel}" sudah bisa dikerjakan siswa.\n\nJangan lupa cek juga Jadwal Ujian di Dashboard Admin agar nama mata pelajarannya sama persis.`);
+      } catch (err) {
+        alert("Gagal menerbitkan soal: " + err.message);
+      }
+    }
+</script>
+</body>
+</html>
